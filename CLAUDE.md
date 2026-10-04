@@ -33,6 +33,15 @@ Dev servers are defined in `.claude/launch.json` (`backend` on :3000, `frontend`
 - **Never act on the user's real mailbox** to test something. Use the fake mailbox:
   `DEV_LOGIN=true` + http://localhost:5173/api/auth/dev-login?reset=1 (see `docs/feature-map.md`).
 
+## Skills (`.claude/skills/`)
+
+| Skill | Use it when |
+|---|---|
+| `/verify [area]` | After any UI/API change, before saying it's done |
+| `/investigate <symptom>` | Before proposing a cause or fix for any bug or "why does…" question |
+| `/repro-bug <report>` | A bug is reported — reproduce on the fake mailbox before fixing |
+| `/add-feature <description>` | Building or extending a feature, layer by layer |
+
 ## Working style
 
 - Read the real code path before explaining a bug or proposing a fix. Cite `file:line`.
@@ -45,7 +54,7 @@ Dev servers are defined in `.claude/launch.json` (`backend` on :3000, `frontend`
 ## Definition of done
 
 1. `npm run check` passes.
-2. For UI or API changes: start the app, log in with the dev login (reset), follow
-   `docs/feature-map.md` for the changed area, check the console and backend logs for errors,
-   and take a screenshot as proof. If you couldn't, say so — never claim it works untested.
+2. For UI or API changes: run the `verify` skill (dev login with reset, the feature-map checks
+   for the changed area, console/backend errors, screenshot). If you couldn't, say so — never
+   claim it works untested.
 3. New UI controls get a `data-testid`; update `docs/feature-map.md` when a feature changes.

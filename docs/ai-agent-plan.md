@@ -53,11 +53,13 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
 
 ## Phase 2 — Skills
 
-- [ ] `/verify` — start servers, seed, dev-login, walk the feature map for the changed
-      area, check console/network, screenshot, `npm run check`
-- [ ] `/investigate` — read the real code path before proposing causes; cite `file:line`
-- [ ] `/repro-bug` — reproduce on fake data first, then fix, then `/verify`
-- [ ] `/add-feature` — schema → module → hook → feature component → page → feature map
+- [x] `/verify` — start servers (`wait-for-app.mjs` instead of sleeps), dev-login with reset,
+      feature-map checks, console/log errors with a baseline, screenshot, `npm run check`;
+      includes the traps found while dogfooding it (6 s Undo, iframe delay, drawer animation)
+- [x] `/investigate` — read the real code path before proposing causes; cite `file:line`
+- [x] `/repro-bug` — reproduce on fake data first (extend fixtures if needed), test, fix, `/verify`
+- [x] `/add-feature` — template table + schema → provider (both) → module → hook → UI →
+      feature map → `/verify`
 - [ ] `/add-provider` (later) — checklist for Outlook/IMAP using the fake provider as reference
 
 ## Phase 3 — Hard guardrails

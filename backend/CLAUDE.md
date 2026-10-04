@@ -24,8 +24,9 @@ controller  →  service  →  AccountsService.getProviderContext()  →  MailPr
 ```
 
 - **Controllers** are thin: `@UseGuards(SessionGuard)`, `@CurrentUserId()`, validate every
-  body/query with `new ZodValidationPipe(schema)` (schemas in `<name>.schemas.ts`), then call
-  one service method. Routes are scoped by `accounts/:accountId/...`.
+  body/query with `new ZodValidationPipe(schema)` (small schemas inline at the top of the
+  controller, like `labels.controller.ts`; many/shared ones in `<name>.schemas.ts`, like
+  `messages.schemas.ts`), then call one service method. Routes are scoped by `accounts/:accountId/...`.
 - **Services** get the provider via `accounts.getProviderContext(userId, accountId)`, which also
   checks ownership. Never load a `MailAccount` without checking `userId`.
 - After a provider action, update the synced rows (`MessageStoreService`) so the Senders
