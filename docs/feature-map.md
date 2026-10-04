@@ -64,6 +64,12 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
 - Title `mail-list-title` ("Inbox", "Trash", tag name, or "Search: …").
 - 50 per page; `page-next` / `page-prev`; `mail-refresh`. Empty state `mail-empty`.
 - Unread rows are bold and have `data-unread`. User tags show as colored badges.
+- Inbox only: each row has a Gmail category badge `mail-row-category[data-category]`
+  (Primary / Promotions / Social, from `CATEGORY_*` labels; Updates and Forums count as
+  Primary). Hovering it shows a tooltip describing the category.
+- Check: in `/inbox`, `deals@shop.example` and `no-reply@amazon.com` rows are Promotions,
+  `notifications@linkedin.com` rows are Social, Medium/GitHub/Nubank rows are Primary;
+  `/label/Label_1` rows have no category badge.
 - API: `GET /api/accounts/:id/messages?labelId=&q=&pageToken=`
 - Check: Inbox has 50 rows and `page-next` enabled; `/label/TRASH` lists 6 `deals@shop.example`
   emails; `/label/SPAM` is not in the sidebar.

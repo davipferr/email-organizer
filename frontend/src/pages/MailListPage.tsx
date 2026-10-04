@@ -5,6 +5,8 @@ import { IconChevronLeft, IconChevronRight, IconRefresh } from '@tabler/icons-re
 import { useCurrentAccount, useLabels, useMessages } from '../api/hooks.ts'
 import type { MailLabel, MailMessageSummary } from '../api/types.ts'
 import { formatListDate, senderName } from '../utils/format.ts'
+import { mailCategory } from '../utils/mailCategory.ts'
+import { CategoryBadge } from '../components/CategoryBadge.tsx'
 import { LabelBadge } from '../components/LabelBadge.tsx'
 import { MessageDrawer } from '../components/MessageDrawer.tsx'
 import { MessageActionsBar } from '../features/messages/MessageActionsBar.tsx'
@@ -178,6 +180,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
                     </Table.Td>
                     <Table.Td>
                       <Group gap={6} wrap="nowrap">
+                        {labelId === 'INBOX' && <CategoryBadge category={mailCategory(m.labelIds)} />}
                         {rowLabels.map((l) => (
                           <LabelBadge key={l.providerLabelId} label={l} />
                         ))}
