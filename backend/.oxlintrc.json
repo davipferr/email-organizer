@@ -50,6 +50,32 @@
       "rules": {
         "no-restricted-imports": "off"
       }
+    },
+    {
+      "files": [
+        "src/**/*.spec.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "googleapis",
+                "message": "Tests must not call Google. Use the fake provider (mail-providers/fake/)."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "**/mail-providers/gmail/gmail.provider*"
+                ],
+                "message": "Tests must not use the real Gmail provider. Use the fake provider (mail-providers/fake/)."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

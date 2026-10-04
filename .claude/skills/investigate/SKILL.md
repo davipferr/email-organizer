@@ -39,6 +39,9 @@ Common splits in this codebase that explain "wrong data" bugs:
 
 ## 3. Form hypotheses, then test them
 
+- Check recent history of the files on the path (`git log -p -5 -- <files>`). A recent change to
+  the code the symptom points at is the obvious suspect: examine it and say explicitly whether
+  it's the cause or why it isn't, before naming another cause.
 - List 1–3 candidate causes, each tied to specific lines.
 - **Prove or kill each one** with the cheapest real check:
   - reproduce on the fake mailbox (see the `verify` skill for login/reset),

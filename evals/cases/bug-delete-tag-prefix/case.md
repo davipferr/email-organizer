@@ -20,8 +20,8 @@ shows with the correct `"Work/"` prefix, so the dialog looks right.
 
 Reproduction: the fixture tags (Finance, Finance/Bills, Travel, Newsletters, Receipts) have
 no such prefix collision, so the agent must create one — e.g. a Vitest case that builds
-`LabelsService` with a small in-memory stand-in provider (the lint boundary forbids importing
-`FakeMailProvider` from `src/modules/**`, and that's correct — don't bypass it), stubbing
+`LabelsService` with the `FakeMailProvider` (allowed in `*.spec.ts`) or a small in-memory
+stand-in provider, stubbing
 `AccountsService.getProviderContext` and `MessageStoreService.syncLabels`, creates "Work",
 "Work/Clients" and "Workout", deletes "Work" with children and expects "Workout" to survive;
 or the same through the fake provider/API. The test fails before the fix and passes after. A good answer also checks the

@@ -14,7 +14,9 @@ layer by layer. Skip layers the feature doesn't need, never reorder them.
 - Restate `$ARGUMENTS` as user-visible behavior + acceptance checks (these become the
   `verify` checks later).
 - Check it against the non-negotiables in `CLAUDE.md` (no permanent delete, manual sync,
-  provider-agnostic, no migrations). If it conflicts, stop and ask.
+  provider-agnostic, no migrations). If it conflicts, stop and ask — naming both the rule and
+  what in the code enforces it (e.g. the OAuth scopes in `gmail.provider.ts`), and offering an
+  alternative that respects the rule.
 - Pick the **template feature** to copy:
 
 | New feature looks like… | Copy from |

@@ -99,12 +99,13 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
 - [x] 3 harder cases (misleading recent commit, misleading frontend over a backend bug, a
       request that breaks a non-negotiable); `prepare.mjs` supports several planted commits.
       Run 2: 45/50 (see `evals/results.md`)
-- [ ] Open: `/investigate` — check recent commits touching the symptom and rule out the obvious
-      suspect explicitly (red herring scored 0/2)
-- [ ] Open: `/add-feature` — when a request conflicts with a rule, also name what in the code
-      enforces it (e.g. OAuth scopes) (1/2)
-- [ ] Open: allow `*.spec.ts` under `backend/src/modules/` to import the fake provider? (a worker
-      had to write a stand-in provider because of the boundary rule)
+- [x] `/investigate`: check recent commits touching the symptom and rule out the obvious suspect
+      explicitly (red herring scored 0/2) — applied, not re-measured yet
+- [x] `/add-feature`: when a request conflicts with a rule, name what in the code enforces it
+      (e.g. OAuth scopes) and offer an alternative (1/2) — applied, not re-measured yet
+- [x] Lint: `*.spec.ts` may import the fake provider anywhere (still not `googleapis` or the real
+      Gmail provider)
+- [ ] Next eval run: `/run-evals investigate` and `/run-evals add-feature` to measure the two edits
 
 ## Phase 5 — Working mode
 

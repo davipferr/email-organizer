@@ -34,7 +34,8 @@ controller  →  service  →  AccountsService.getProviderContext()  →  MailPr
 - **Provider code** (`mail-providers/<provider>/`) is the only place that may import
   `googleapis` or provider SDKs — enforced by lint for `modules/`, `common/`, `jobs/`, `config/`
   and `prisma/`. The single exception is `modules/auth/dev-login.service.ts` (it creates the
-  fake account); don't add others. It throws `ProviderAuthError` / `ProviderRequestError` /
+  fake account); don't add others. Tests (`*.spec.ts`) may import the fake provider anywhere,
+  but never `googleapis` or the real Gmail provider. It throws `ProviderAuthError` / `ProviderRequestError` /
   `ProviderNotFoundError`; `ProviderExceptionFilter` maps them to HTTP. Don't catch them in services.
 - Bulk work over many emails (by sender / search) is a pg-boss job that returns a row to poll
   (`BulkAction`, `SyncRun`). Jobs never retry automatically.
