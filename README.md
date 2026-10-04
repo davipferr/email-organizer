@@ -7,7 +7,7 @@ and group emails by sender. Built to support other providers (Outlook, IMAP) lat
 
 | Layer | Tech |
 |---|---|
-| Frontend | React + TypeScript + Vite, Mantine, TanStack Query/Virtual, React Router |
+| Frontend | React + TypeScript + Vite, Mantine, TanStack Query, React Router |
 | Backend | NestJS (TypeScript), `googleapis` |
 | Database | PostgreSQL + Prisma (no migrations — `prisma db push`) |
 | Jobs | pg-boss (on PostgreSQL, no Redis) |
@@ -23,79 +23,90 @@ and group emails by sender. Built to support other providers (Outlook, IMAP) lat
 ├── .env.example              # copy to .env
 ├── backend/
 │   ├── prisma/schema.prisma  # all tables live here (single source of truth)
-│   ├── prisma.config.ts
 │   ├── docker-entrypoint.sh  # runs `prisma db push`, then starts the API
 │   └── src/
-│       ├── main.ts, app.module.ts
 │       ├── config/           # env validation (zod)
-│       ├── prisma/           # PrismaService
-│       ├── common/           # session guard, token encryption, validation pipe
-│       ├── jobs/             # pg-boss (sync + bulk action queues)
+│       ├── common/           # session guard, token encryption, validation
+│       ├── jobs/             # pg-boss queues (sync, bulk actions)
 │       ├── mail-providers/   # provider interface + gmail/ implementation
-│       └── modules/          # auth, accounts, sync, messages, labels, senders, health
-└── frontend/
-    └── src/
-        ├── main.tsx, router.tsx, theme.ts
-        ├── api/client.ts     # fetch wrapper (cookie session)
-        ├── layouts/          # AppShell: header + sidebar
-        ├── components/
-        └── pages/            # Login, MailList, Senders, Tags
+│       └── modules/          # auth, accounts, sync, messages, labels, senders
+└── frontend/src/
+    ├── api/                  # fetch client, React Query hooks, types
+    ├── features/             # message actions, tags, senders dialogs
+    ├── layouts/, components/
+    └── pages/                # Login, Privacy, MailList, Senders, Tags
 ```
 
 ## Database without migrations
 
-Tables are defined only in `backend/prisma/schema.prisma`.
-`prisma db push` makes the database match the schema — it runs automatically when the
-backend container starts (and with `npm run db:push` in dev). If a change would lose
-data (e.g. renaming or removing a field), it refuses and tells you why instead of
-dropping anything.
+Tables are defined only in `backend/prisma/schema.prisma`. After changing it, run
+`npm run db:push` (in Docker it runs on every start). If a change would lose data
+(e.g. renaming or removing a field), it stops and explains instead of dropping anything.
 
-## Google setup (once)
+## 1. Google setup (once)
 
-1. [Google Cloud Console](https://console.cloud.google.com/) → create a project.
-2. Enable the **Gmail API**.
-3. **OAuth consent screen**: User type *External*, add the scopes
-   `gmail.modify` and `gmail.labels`, then set the publishing status to
-   **In production** (do not submit for verification). This avoids the 7-day token
-   expiry of "Testing" mode. Users will see an "unverified app" warning once.
-4. **Credentials** → OAuth client ID → *Web application*. Authorized redirect URIs:
-   - `http://localhost:5173/api/auth/google/callback`
-   - `https://<your-domain>/api/auth/google/callback`
-5. Put the client ID and secret in `.env`.
+In [Google Cloud Console](https://console.cloud.google.com/):
 
-## Local development
+1. **Create a project**, then **APIs & Services → Library → Gmail API → Enable**.
+2. **Google Auth Platform → Branding**
+   - App name **without** "Gmail" or "Google" (e.g. `Mail Organizer`), or creation fails.
+   - Support email and developer contact email: your email.
+   - **No logo** (it forces Google verification). Leave the other fields empty for now.
+3. **Audience** → User type **External**, keep status **Testing**, and under
+   **Test users** add your email (and your friends').
+4. **Data Access** → nothing to add. The app requests the Gmail permissions itself at login.
+5. **Clients → Create client → Web application**, redirect URI:
+   `http://localhost:5173/api/auth/google/callback`
+6. Copy the client ID and secret into `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
+
+In Testing mode Google asks you to log in again every 7 days. That goes away once the
+app is published (see [Deploy](#3-deploy-on-the-vps)).
+
+## 2. Local development
 
 ```bash
-cp .env.example .env          # fill GOOGLE_* and TOKEN_ENCRYPTION_KEY
+cp .env.example .env    # fill GOOGLE_* and TOKEN_ENCRYPTION_KEY (command in the file)
 docker compose -f docker-compose.dev.yml up -d
-
-cd backend
-npm install
-npm run db:push
-npm run prisma:generate
-npm run start:dev             # http://localhost:3000/api
-
-cd ../frontend
-npm install
-npm run dev                   # http://localhost:5173 (proxies /api to :3000)
+cd backend && npm install && npm run db:push && npm run prisma:generate
+cd ../frontend && npm install
 ```
 
-## Deploy on the VPS
+Then, in two terminals from the project root:
 
-Requirements: Docker, a domain (or a free subdomain such as DuckDNS) pointing at the
-VPS, ports 80 and 443 open.
+```bash
+npm --prefix backend run start:dev    # API on http://localhost:3000/api
+npm --prefix frontend run dev         # site on http://localhost:5173
+```
+
+**First use:** open http://localhost:5173 → **Continue with Google** → on the
+"unverified app" warning choose **Advanced → Go to app** → tick **both** Gmail
+permissions. Then open **Senders → Sync** to copy your email metadata (only needed
+for the Senders view; click Sync again whenever you want fresh numbers).
+
+## 3. Deploy on the VPS
+
+Needs Docker, a domain (or a free DuckDNS subdomain) pointing at the VPS, and ports
+80/443 open.
 
 ```bash
 git clone <repo> && cd <repo>
-cp .env.example .env          # set DOMAIN, strong POSTGRES_PASSWORD, GOOGLE_*, TOKEN_ENCRYPTION_KEY
+cp .env.example .env    # set DOMAIN, a strong POSTGRES_PASSWORD, GOOGLE_*, TOKEN_ENCRYPTION_KEY
 docker compose up -d --build
 ```
 
-Update later:
+Then publish the Google app so logins stop expiring:
+
+1. **Clients** → your client → add the redirect URI
+   `https://<your-domain>/api/auth/google/callback`.
+2. **Branding** → Home page `https://<your-domain>`, Privacy policy
+   `https://<your-domain>/privacy`, Authorized domain `<your-domain>`.
+   Both pages are served by this project (login page and `PrivacyPage.tsx`), no login needed.
+3. **Audience → Publish app**. Ignore "verification required" — don't submit anything.
+
+Update after changes:
 
 ```bash
-git pull
-docker compose up -d --build
+git pull && docker compose up -d --build
 ```
 
 Optional daily backup (cron on the VPS):
