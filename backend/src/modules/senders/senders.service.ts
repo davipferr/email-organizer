@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { hasLabel, notTrashOrSpam } from '../../prisma/message-filters.js';
 import { AccountsService } from '../accounts/accounts.service.js';
 import type { ListSendersInput } from './senders.controller.js';
 
@@ -12,6 +13,7 @@ interface SenderRow {
   unread: number;
   latest: Date;
   sizeBytes: bigint;
+  listUnsubscribe: string | null;
 }
 
 const GROUP_COLUMN = { email: Prisma.raw('m."fromEmail"'), domain: Prisma.raw('m."fromDomain"') };
@@ -36,20 +38,20 @@ export class SendersService {
 
     const conditions = [
       Prisma.sql`m."accountId" = ${accountId}::uuid`,
-      Prisma.sql`NOT EXISTS (
-        SELECT 1 FROM message_labels ml JOIN labels l ON l.id = ml."labelId"
-        WHERE ml."messageId" = m.id AND l."providerLabelId" IN ('TRASH', 'SPAM'))`,
+      notTrashOrSpam,
     ];
     if (search) {
       const like = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
       conditions.push(Prisma.sql`(m."fromEmail" ILIKE ${like} OR m."fromName" ILIKE ${like})`);
     }
     if (query.labelId) {
-      conditions.push(Prisma.sql`EXISTS (
-        SELECT 1 FROM message_labels ml JOIN labels l ON l.id = ml."labelId"
-        WHERE ml."messageId" = m.id AND l."providerLabelId" = ${query.labelId})`);
+      conditions.push(hasLabel(query.labelId));
     }
     const where = Prisma.join(conditions, ' AND ');
+    // On the group, not the rows, so the counts still cover every email from the sender.
+    const having = query.unsubscribable
+      ? Prisma.sql`HAVING bool_or(m."listUnsubscribe" IS NOT NULL)`
+      : Prisma.empty;
 
     const [rows, [{ count }]] = await Promise.all([
       this.prisma.$queryRaw<SenderRow[]>`
@@ -59,14 +61,19 @@ export class SendersService {
                count(*)::int AS total,
                count(*) FILTER (WHERE m."isUnread")::int AS unread,
                max(m.date) AS latest,
-               sum(m."sizeBytes")::bigint AS "sizeBytes"
+               sum(m."sizeBytes")::bigint AS "sizeBytes",
+               -- The newest header wins: senders change their unsubscribe links over time.
+               (array_agg(m."listUnsubscribe" ORDER BY m.date DESC)
+                  FILTER (WHERE m."listUnsubscribe" IS NOT NULL))[1] AS "listUnsubscribe"
         FROM messages m
         WHERE ${where}
         GROUP BY ${groupBy}
+        ${having}
         ORDER BY ${ORDER[query.sort]}, key
         LIMIT ${query.pageSize} OFFSET ${(query.page - 1) * query.pageSize}`,
       this.prisma.$queryRaw<{ count: number }[]>`
-        SELECT count(DISTINCT ${groupBy})::int AS count FROM messages m WHERE ${where}`,
+        SELECT count(*)::int AS count
+        FROM (SELECT 1 FROM messages m WHERE ${where} GROUP BY ${groupBy} ${having}) g`,
     ]);
 
     return {

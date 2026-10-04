@@ -1,7 +1,17 @@
 import type { ReactNode } from 'react'
 import { NavLink as RouterNavLink, useLocation } from 'react-router'
 import { ActionIcon, Box, Group, NavLink, ScrollArea, Skeleton, Text } from '@mantine/core'
-import { IconInbox, IconPlus, IconSend, IconStar, IconTags, IconTrash, IconUsers } from '@tabler/icons-react'
+import {
+  IconChartBar,
+  IconDatabase,
+  IconInbox,
+  IconPlus,
+  IconSend,
+  IconStar,
+  IconTags,
+  IconTrash,
+  IconUsers,
+} from '@tabler/icons-react'
 import { useCurrentAccount, useLabels } from '../api/hooks.ts'
 import type { MailLabel } from '../api/types.ts'
 import { openTagForm } from '../features/tags/TagForm.tsx'
@@ -104,6 +114,22 @@ export function SidebarNav() {
         data-testid="nav-tags"
         leftSection={<IconTags size={18} />}
         active={pathname === '/tags'}
+      />
+      <NavLink
+        component={RouterNavLink}
+        to="/storage"
+        label="Storage"
+        data-testid="nav-storage"
+        leftSection={<IconDatabase size={18} />}
+        active={pathname === '/storage'}
+      />
+      <NavLink
+        component={RouterNavLink}
+        to="/stats"
+        label="Stats"
+        data-testid="nav-stats"
+        leftSection={<IconChartBar size={18} />}
+        active={pathname === '/stats'}
       />
 
       <Group justify="space-between" px="sm" mt="md" mb={4}>

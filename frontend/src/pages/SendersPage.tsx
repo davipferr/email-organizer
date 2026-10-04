@@ -15,6 +15,7 @@ import {
   SegmentedControl,
   Select,
   Stack,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -28,6 +29,7 @@ import { useCurrentAccount, useSenders, useStartSync, useSyncStatus, type Sender
 import type { SenderGroup } from '../api/types.ts'
 import { formatBytes, formatListDate, formatRelative } from '../utils/format.ts'
 import { openOrganizeSender } from '../features/senders/OrganizeSenderForm.tsx'
+import { UnsubscribeMenu } from '../features/senders/UnsubscribeMenu.tsx'
 
 const SORT_OPTIONS = [
   { value: 'count', label: 'Most emails' },
@@ -46,11 +48,18 @@ export function SendersPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch] = useDebouncedValue(search, 300)
   const [page, setPage] = useState(1)
+  const [unsubscribable, setUnsubscribable] = useState(false)
 
   const { data: sync } = useSyncStatus(account?.id)
   const startSync = useStartSync(account?.id)
   const running = sync?.run?.status === 'RUNNING'
-  const { data, isLoading, isFetching } = useSenders(account?.id, { groupBy, sort, search: debouncedSearch, page })
+  const { data, isLoading, isFetching } = useSenders(account?.id, {
+    groupBy,
+    sort,
+    search: debouncedSearch,
+    page,
+    unsubscribable,
+  })
 
   // The senders list reloads by itself (useSenders keys on lastSyncedAt); this only reports the result.
   const runSync = (full: boolean) =>
@@ -187,6 +196,13 @@ export function SendersPage() {
               value={search}
               onChange={(e) => changeFilter(setSearch)(e.currentTarget.value)}
             />
+            <Switch
+              size="sm"
+              label="Can unsubscribe"
+              checked={unsubscribable}
+              onChange={(e) => changeFilter(setUnsubscribable)(e.currentTarget.checked)}
+              data-testid="senders-unsubscribable"
+            />
           </Group>
 
           <Paper withBorder radius="md">
@@ -196,7 +212,7 @@ export function SendersPage() {
               </Center>
             ) : !data?.senders.length ? (
               <Text c="dimmed" ta="center" p="xl">
-                {debouncedSearch ? 'No senders match this search.' : 'No emails synced yet.'}
+                {debouncedSearch || unsubscribable ? 'No senders match these filters.' : 'No emails synced yet.'}
               </Text>
             ) : (
               <Table verticalSpacing={8} highlightOnHover style={{ tableLayout: 'fixed' }}>
@@ -207,7 +223,7 @@ export function SendersPage() {
                     <Table.Th w={80} ta="right">Unread</Table.Th>
                     <Table.Th w={90} ta="right">Latest</Table.Th>
                     <Table.Th w={90} ta="right">Size</Table.Th>
-                    <Table.Th w={170} />
+                    <Table.Th w={290} />
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -248,6 +264,7 @@ export function SendersPage() {
                       </Table.Td>
                       <Table.Td>
                         <Group gap={6} justify="flex-end" wrap="nowrap">
+                          <UnsubscribeMenu group={g} />
                           <Button size="xs" variant="default" data-testid="sender-view" onClick={() => view(g)}>
                             View
                           </Button>

@@ -11,6 +11,7 @@ import { SyncModule } from './modules/sync/sync.module.js';
 import { MessagesModule } from './modules/messages/messages.module.js';
 import { LabelsModule } from './modules/labels/labels.module.js';
 import { SendersModule } from './modules/senders/senders.module.js';
+import { InsightsModule } from './modules/insights/insights.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SendersModule } from './modules/senders/senders.module.js';
     MessagesModule,
     LabelsModule,
     SendersModule,
+    InsightsModule,
   ],
 })
 export class AppModule {}

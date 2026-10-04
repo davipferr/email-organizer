@@ -10,6 +10,11 @@ const listSendersSchema = z.object({
   sort: z.enum(['count', 'latest', 'size']).default('count'),
   search: z.string().optional(),
   labelId: z.string().optional(),
+  // Only senders whose emails carry a List-Unsubscribe header.
+  unsubscribable: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .default(false),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });

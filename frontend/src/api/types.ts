@@ -71,6 +71,7 @@ export interface SenderGroup {
   unread: number
   latest: string
   sizeBytes: number
+  listUnsubscribe: string | null // newest List-Unsubscribe header from this sender/domain
 }
 
 export interface SendersPage {
@@ -79,6 +80,31 @@ export interface SendersPage {
   page: number
   pageSize: number
   senders: SenderGroup[]
+}
+
+export interface StoragePage {
+  lastSyncedAt: string | null
+  totalMessages: number
+  totalBytes: number
+  page: number
+  pageSize: number
+  messages: MailMessageSummary[] // biggest first
+}
+
+export interface CountPoint<K> {
+  key: K
+  count: number
+}
+
+export interface MailboxStats {
+  lastSyncedAt: string | null
+  timeZone: string
+  totals: { messages: number; unread: number; senders: number; sizeBytes: number }
+  byMonth: CountPoint<string>[] // "YYYY-MM", last 12 months, oldest first
+  byHour: CountPoint<number>[] // 0–23
+  byWeekday: CountPoint<number>[] // 1 = Monday … 7 = Sunday
+  categories: { category: 'Primary' | 'Promotions' | 'Social'; count: number; unread: number }[]
+  topSenders: { email: string; name: string | null; count: number }[]
 }
 
 export interface BulkAction {

@@ -5,6 +5,8 @@ import { PrivacyPage } from './pages/PrivacyPage.tsx'
 import { MailListPage } from './pages/MailListPage.tsx'
 import { SendersPage } from './pages/SendersPage.tsx'
 import { TagsPage } from './pages/TagsPage.tsx'
+import { StoragePage } from './pages/StoragePage.tsx'
+import { StatsPage } from './pages/StatsPage.tsx'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -18,6 +20,8 @@ export const router = createBrowserRouter([
       { path: 'search', element: <MailListPage /> },
       { path: 'senders', element: <SendersPage /> },
       { path: 'tags', element: <TagsPage /> },
+      { path: 'storage', element: <StoragePage /> },
+      { path: 'stats', element: <StatsPage /> },
       { path: '*', element: <Navigate to="/inbox" replace /> },
     ],
   },

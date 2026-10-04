@@ -22,9 +22,11 @@ export function useMessageActions(accountId: string | undefined) {
   const changeLabels = (ids: string[], add: string[], remove: string[]) =>
     post('labels', { selector: { ids }, add, remove })
 
+  // Actions also update the synced copy, so the views built from it reload too.
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['messages', accountId] })
-    void qc.invalidateQueries({ queryKey: ['message', accountId] })
+    for (const key of ['messages', 'message', 'senders', 'storage', 'stats']) {
+      void qc.invalidateQueries({ queryKey: [key, accountId] })
+    }
   }
 
   async function perform({ run, undo, message }: Step): Promise<boolean> {

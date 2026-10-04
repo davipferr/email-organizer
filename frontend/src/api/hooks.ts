@@ -1,6 +1,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, apiPatch, apiPost } from './client.ts'
-import type { MailLabel, MailMessageFull, Me, MessagePage, SendersPage, SyncRun, SyncStatus } from './types.ts'
+import type {
+  MailLabel,
+  MailMessageFull,
+  MailboxStats,
+  Me,
+  MessagePage,
+  SendersPage,
+  StoragePage,
+  SyncRun,
+  SyncStatus,
+} from './types.ts'
 
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => apiGet<Me>('/auth/me'), staleTime: Infinity })
@@ -119,6 +129,7 @@ export interface SendersQuery {
   sort: 'count' | 'latest' | 'size'
   search: string
   page: number
+  unsubscribable?: boolean
 }
 
 export function useSenders(accountId: string | undefined, query: SendersQuery) {
@@ -126,11 +137,34 @@ export function useSenders(accountId: string | undefined, query: SendersQuery) {
   const lastSyncedAt = useSyncStatus(accountId).data?.lastSyncedAt
   const params = new URLSearchParams({ groupBy: query.groupBy, sort: query.sort, page: String(query.page) })
   if (query.search.trim()) params.set('search', query.search.trim())
+  if (query.unsubscribable) params.set('unsubscribable', 'true')
   return useQuery({
     queryKey: ['senders', accountId, query, lastSyncedAt],
     queryFn: () => apiGet<SendersPage>(`/accounts/${accountId}/senders?${params}`),
     enabled: !!accountId,
     placeholderData: keepPreviousData,
+  })
+}
+
+// From the synced copy, like useSenders: reloads by itself whenever a sync finishes.
+export function useStorage(accountId: string | undefined, page: number) {
+  const lastSyncedAt = useSyncStatus(accountId).data?.lastSyncedAt
+  return useQuery({
+    queryKey: ['storage', accountId, page, lastSyncedAt],
+    queryFn: () => apiGet<StoragePage>(`/accounts/${accountId}/storage?page=${page}`),
+    enabled: !!accountId,
+    placeholderData: keepPreviousData,
+  })
+}
+
+const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+export function useStats(accountId: string | undefined) {
+  const lastSyncedAt = useSyncStatus(accountId).data?.lastSyncedAt
+  return useQuery({
+    queryKey: ['stats', accountId, lastSyncedAt],
+    queryFn: () => apiGet<MailboxStats>(`/accounts/${accountId}/stats?tz=${encodeURIComponent(browserTimeZone)}`),
+    enabled: !!accountId,
   })
 }
 

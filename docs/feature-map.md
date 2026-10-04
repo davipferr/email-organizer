@@ -26,9 +26,9 @@ reset (`fake-0001` is the newest); dates move with the current time.
 | `noreply@medium.com` | 40 | tag Newsletters, mostly unread, some archived, List-Unsubscribe |
 | `noreply@github.com` | 35 | plain text only, some archived |
 | `todomundo@nubank.com.br` | 25 | tags Finance + Finance/Bills, some starred |
-| `no-reply@amazon.com` | 22 | promotions |
-| `notifications@linkedin.com` | 20 | mostly unread |
-| `deals@shop.example` | 15 + 6 in Trash | promotions, mostly unread |
+| `no-reply@amazon.com` | 22 | promotions, List-Unsubscribe |
+| `notifications@linkedin.com` | 20 | mostly unread, List-Unsubscribe |
+| `deals@shop.example` | 15 + 6 in Trash | promotions, mostly unread, List-Unsubscribe with an https link first |
 | `orders@amazon.com` | 10 | tag Receipts, 180 KB attachments (same domain as Amazon above) |
 | `ana.souza@gmail.com` | 8 | personal, starred, one thread "Trip plans" |
 | `booking@skyair.example` | 6 | tag Travel |
@@ -100,12 +100,39 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
   (By email / By domain — `amazon.com` groups 2 senders, 32 emails), sort select,
   `senders-search`, pagination.
 - `sender-view` → `/search?q=from:<key>`.
+- Unsubscribe: `senders-unsubscribable` switch ("Can unsubscribe") keeps only senders with a
+  List-Unsubscribe header — 4 after a reset (Medium, Amazon, LinkedIn, Shop Deals), counts
+  still cover all their emails. Those rows get `sender-unsubscribe` (menu):
+  `sender-unsubscribe-open` (a link: https in a new tab for Shop Deals, `mailto:` for the
+  others — the app can't send email) and `sender-unsubscribe-trash` → confirm
+  `unsubscribe-trash-confirm` opens the link and runs the "trash all from sender" job.
 - `sender-organize` → modal: Add tag, Archive (default on), Mark as read, `organize-apply`,
   `organize-trash-all` (confirm modal). Runs a background job; progress notification ends with
   "Done — N emails updated". Emails already in Trash are not counted.
-- API: `POST/GET /api/accounts/:id/sync`, `GET .../senders`, `POST/GET .../messages/bulk[/:id]`
+- API: `POST/GET /api/accounts/:id/sync`, `GET .../senders[?unsubscribable=true]`,
+  `POST/GET .../messages/bulk[/:id]`
 - Check: after Sync, `todomundo@nubank.com.br` shows 25; Organize `deals@shop.example` with
   defaults → 15 updated, none left in Inbox.
+
+### Storage — `/storage` (`nav-storage`)
+- Built from the synced copy; before the first sync shows "Sync your mailbox…" with `go-sync`.
+- `storage-total` (14 MB after a reset + sync — Trash and Spam left out), senders by size
+  `storage-sender[data-key]` (top: `john@company.example` 12 MB, then `orders@amazon.com`)
+  with `storage-sender-organize` (same Organize dialog as Senders).
+- Biggest emails `storage-row[data-id]` (top 5: John's 2.3 MB emails, `fake-0135` first),
+  click opens the email drawer; `storage-row-checkbox`, `storage-select-all`,
+  `storage-trash` ("Move to Trash (N, size)") → notification with `undo`. 50 per page.
+- API: `GET .../storage?page=`
+- Check: trash the top 2 → total drops to 9.2 MB; Undo → back to 14 MB.
+
+### Stats — `/stats` (`nav-stats`)
+- Built from the synced copy (Trash and Spam left out); "Sync your mailbox…" before a sync.
+- Tiles `stats-total` (191 after a reset + sync), `stats-unread`, `stats-senders` (11),
+  `stats-size`. Charts `stats-by-month` (12 bars), `stats-by-hour` (24, in the browser's
+  time zone), `stats-by-weekday` (7, Mon–Sun), `stats-categories` with
+  `stats-category[data-category]` (Primary / Promotions / Social), `stats-top-senders` with
+  `stats-top-sender[data-key]` (Medium 40 first; click → `/search?q=from:<email>`).
+- API: `GET .../stats?tz=<IANA zone>` (unknown zone → 400).
 
 ### Manage tags — `/tags` (`nav-tags`)
 - `tag-row[data-label-id]` with Emails / Unread counts, sub-tags indented; `tag-edit`,

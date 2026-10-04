@@ -62,9 +62,16 @@ interface SenderSpec {
   unreadRate: number;
   archivedRate?: number; // share without INBOX
   starredRate?: number;
-  unsubscribe?: boolean;
+  unsubscribe?: boolean | 'https'; // 'https' adds a web link before the mailto, as most senders do
   attachmentKb?: number;
   folder?: 'SENT' | 'SPAM' | 'TRASH';
+}
+
+function unsubscribeHeader(spec: SenderSpec): string | undefined {
+  if (!spec.unsubscribe) return undefined;
+  const domain = spec.from.email.split('@')[1];
+  const mailto = `<mailto:unsubscribe@${domain}>`;
+  return spec.unsubscribe === 'https' ? `<https://${domain}/unsubscribe?u=dev>, ${mailto}` : mailto;
 }
 
 const SENDERS: SenderSpec[] = [
@@ -130,7 +137,7 @@ const SENDERS: SenderSpec[] = [
     labels: ['CATEGORY_PROMOTIONS'],
     body: 'html',
     unreadRate: 0.9,
-    unsubscribe: true,
+    unsubscribe: 'https',
   },
   {
     from: { email: 'ana.souza@gmail.com', name: 'Ana Souza' },
@@ -259,7 +266,7 @@ export function createFakeMailbox(now = new Date()): FakeMailbox {
       date: new Date(now.getTime() - hoursAgo * 3600_000),
       sizeBytes: (text?.length ?? 0) + (html?.length ?? 0) + (spec.attachmentKb ?? 0) * 1024 + Math.floor(rand() * 4000),
       labelIds,
-      listUnsubscribe: spec.unsubscribe ? `<mailto:unsubscribe@${spec.from.email.split('@')[1]}>` : undefined,
+      listUnsubscribe: unsubscribeHeader(spec),
       version: 0,
     });
   });
