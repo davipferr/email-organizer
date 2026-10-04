@@ -3,7 +3,9 @@ import { google, type gmail_v1 } from 'googleapis';
 import { MailProviderType } from '../../generated/prisma/enums.js';
 import { AppConfig } from '../../config/config.module.js';
 import { chunk, mapLimit, sleep } from '../../common/async.js';
+import { RateLimiter } from '../../common/rate-limiter.js';
 import { MissingScopesError, ProviderAuthError, ProviderNotFoundError, ProviderRequestError } from '../provider-errors.js';
+import { errorCode, errorMessage, errorStatus, isRateLimit, isRetryable } from './gmail-errors.js';
 import { toFull, toLabel, toSummary } from './gmail-parsers.js';
 import type {
   ListMessagesQuery,
@@ -27,9 +29,25 @@ const GMAIL_LABELS = 'https://www.googleapis.com/auth/gmail.labels';
 export const GMAIL_SCOPES = ['openid', 'email', 'profile', GMAIL_MODIFY, GMAIL_LABELS];
 
 const METADATA_HEADERS = ['From', 'Subject', 'Date', 'List-Unsubscribe'];
-// Gmail allows ~250 quota units/user/second; messages.get costs 5.
 const CONCURRENCY = 8;
 const SYNC_BATCH = 100;
+// Gmail documents 15,000 quota units per user per minute. Concurrency alone doesn't bound the
+// rate (fast responses let 8 workers spend ~800 units/s), so every call takes its cost
+// from a per-account bucket that stays under it: 200 + 200/s ≈ 12,200 units/minute.
+// A Cloud project can have a lower limit; rate-limit replies then pause the bucket.
+const QUOTA_PER_SECOND = 200;
+// 15 + 30 + 60×6 s ≈ 7 minutes of waiting before a request gives up.
+const RATE_LIMIT_RETRIES = 8;
+// Units per call, from https://developers.google.com/gmail/api/reference/quota
+const COST = {
+  getProfile: 1,
+  labelsRead: 1,
+  history: 2,
+  message: 5,
+  list: 5,
+  labelsWrite: 5,
+  batchModify: 50,
+} as const;
 
 type Gmail = gmail_v1.Gmail;
 
@@ -38,6 +56,8 @@ export class GmailProvider implements MailProvider {
   readonly type = MailProviderType.GMAIL;
   readonly capabilities = { multiLabel: true, folders: false };
   private readonly logger = new Logger(GmailProvider.name);
+  // The quota is per user; the refresh token identifies the account.
+  private readonly limiters = new Map<string, RateLimiter>();
 
   constructor(private readonly config: AppConfig) {}
 
@@ -71,11 +91,21 @@ export class GmailProvider implements MailProvider {
     return google.gmail({ version: 'v1', auth: client });
   }
 
-  // Retries rate limits / transient errors with exponential backoff and maps
-  // auth and not-found errors to provider-agnostic errors.
-  private async call<T>(auth: ProviderAuth, fn: () => Promise<T>): Promise<T> {
+  private limiter(auth: ProviderAuth): RateLimiter {
+    let limiter = this.limiters.get(auth.refreshToken);
+    if (!limiter) {
+      limiter = new RateLimiter(QUOTA_PER_SECOND, QUOTA_PER_SECOND);
+      this.limiters.set(auth.refreshToken, limiter);
+    }
+    return limiter;
+  }
+
+  // Waits for quota, retries rate limits / transient errors with exponential backoff and
+  // maps auth and not-found errors to provider-agnostic errors.
+  private async call<T>(auth: ProviderAuth, cost: number, fn: () => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
+        await this.limiter(auth).take(cost);
         return await fn();
       } catch (err) {
         const status = errorStatus(err);
@@ -86,6 +116,14 @@ export class GmailProvider implements MailProvider {
         if (status === 404) throw new ProviderNotFoundError();
         if (status === 409) throw new ProviderRequestError(409, 'A tag with this name already exists');
         if (status === 400) throw new ProviderRequestError(400, errorMessage(err) ?? 'Gmail rejected the request');
+        if (isRateLimit(err) && attempt < RATE_LIMIT_RETRIES) {
+          // Quota is per user per minute, so every request for this account waits, not just
+          // this one: 15, 30, then 60 s at a time until the window resets.
+          const delay = Math.min(15_000 * 2 ** attempt, 60_000);
+          this.logger.warn(`Gmail rate limit (${errorMessage(err)}); pausing ${delay / 1000}s`);
+          this.limiter(auth).pause(delay);
+          continue;
+        }
         if (isRetryable(err) && attempt < 5) {
           await sleep(2 ** attempt * 500 + Math.random() * 250);
           continue;
@@ -141,7 +179,7 @@ export class GmailProvider implements MailProvider {
   private async getSummaries(auth: ProviderAuth, gmail: Gmail, ids: string[]): Promise<MailMessageSummary[]> {
     const results = await mapLimit(ids, CONCURRENCY, async (id) => {
       try {
-        const res = await this.call(auth, () =>
+        const res = await this.call(auth, COST.message, () =>
           gmail.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: METADATA_HEADERS }),
         );
         return toSummary(res.data);
@@ -155,7 +193,7 @@ export class GmailProvider implements MailProvider {
 
   async listMessages(auth: ProviderAuth, query: ListMessagesQuery): Promise<MessagePage> {
     const gmail = this.gmail(auth);
-    const res = await this.call(auth, () =>
+    const res = await this.call(auth, COST.list, () =>
       gmail.users.messages.list({
         userId: 'me',
         q: query.q,
@@ -175,7 +213,7 @@ export class GmailProvider implements MailProvider {
 
   async getMessage(auth: ProviderAuth, id: string): Promise<MailMessageFull> {
     const gmail = this.gmail(auth);
-    const res = await this.call(auth, () => gmail.users.messages.get({ userId: 'me', id, format: 'full' }));
+    const res = await this.call(auth, COST.message, () => gmail.users.messages.get({ userId: 'me', id, format: 'full' }));
     return toFull(res.data);
   }
 
@@ -183,7 +221,7 @@ export class GmailProvider implements MailProvider {
     const ids: string[] = [];
     let pageToken: string | undefined;
     do {
-      const res = await this.call(auth, () =>
+      const res = await this.call(auth, COST.list, () =>
         gmail.users.messages.list({ userId: 'me', q, pageToken, maxResults: 500 }),
       );
       ids.push(...(res.data.messages ?? []).map((m) => m.id!));
@@ -201,7 +239,7 @@ export class GmailProvider implements MailProvider {
   async modifyLabels(auth: ProviderAuth, ids: string[], add: string[], remove: string[]): Promise<void> {
     const gmail = this.gmail(auth);
     for (const part of chunk(ids, 1000)) {
-      await this.call(auth, () =>
+      await this.call(auth, COST.batchModify, () =>
         gmail.users.messages.batchModify({
           userId: 'me',
           requestBody: { ids: part, addLabelIds: add, removeLabelIds: remove },
@@ -212,26 +250,26 @@ export class GmailProvider implements MailProvider {
 
   async trash(auth: ProviderAuth, ids: string[]): Promise<void> {
     const gmail = this.gmail(auth);
-    await mapLimit(ids, CONCURRENCY, (id) => this.call(auth, () => gmail.users.messages.trash({ userId: 'me', id })));
+    await mapLimit(ids, CONCURRENCY, (id) => this.call(auth, COST.message, () => gmail.users.messages.trash({ userId: 'me', id })));
   }
 
   async untrash(auth: ProviderAuth, ids: string[]): Promise<void> {
     const gmail = this.gmail(auth);
-    await mapLimit(ids, CONCURRENCY, (id) => this.call(auth, () => gmail.users.messages.untrash({ userId: 'me', id })));
+    await mapLimit(ids, CONCURRENCY, (id) => this.call(auth, COST.message, () => gmail.users.messages.untrash({ userId: 'me', id })));
   }
 
   // ---------- Labels ----------
 
   async listLabels(auth: ProviderAuth, options: { withCounts?: boolean } = {}): Promise<MailLabel[]> {
     const gmail = this.gmail(auth);
-    const res = await this.call(auth, () => gmail.users.labels.list({ userId: 'me' }));
+    const res = await this.call(auth, COST.labelsRead, () => gmail.users.labels.list({ userId: 'me' }));
     const labels = res.data.labels ?? [];
     if (!options.withCounts) return labels.map(toLabel);
 
     // labels.list has no counts; fetch them for the user's tags.
     return mapLimit(labels, CONCURRENCY, async (label) => {
       if (label.type === 'system') return toLabel(label);
-      const full = await this.call(auth, () => gmail.users.labels.get({ userId: 'me', id: label.id! }));
+      const full = await this.call(auth, COST.labelsRead, () => gmail.users.labels.get({ userId: 'me', id: label.id! }));
       return toLabel(full.data);
     });
   }
@@ -241,7 +279,7 @@ export class GmailProvider implements MailProvider {
     input: { name: string; colorBg?: string; colorText?: string },
   ): Promise<MailLabel> {
     const gmail = this.gmail(auth);
-    const res = await this.call(auth, () =>
+    const res = await this.call(auth, COST.labelsWrite, () =>
       gmail.users.labels.create({
         userId: 'me',
         requestBody: {
@@ -261,7 +299,7 @@ export class GmailProvider implements MailProvider {
     input: { name?: string; colorBg?: string; colorText?: string },
   ): Promise<MailLabel> {
     const gmail = this.gmail(auth);
-    const res = await this.call(auth, () =>
+    const res = await this.call(auth, COST.labelsWrite, () =>
       gmail.users.labels.patch({ userId: 'me', id, requestBody: { name: input.name, color: labelColor(input) } }),
     );
     return toLabel(res.data);
@@ -269,7 +307,7 @@ export class GmailProvider implements MailProvider {
 
   async deleteLabel(auth: ProviderAuth, id: string): Promise<void> {
     const gmail = this.gmail(auth);
-    await this.call(auth, () => gmail.users.labels.delete({ userId: 'me', id }));
+    await this.call(auth, COST.labelsWrite, () => gmail.users.labels.delete({ userId: 'me', id }));
   }
 
   // ---------- Sync ----------
@@ -280,7 +318,7 @@ export class GmailProvider implements MailProvider {
   ): Promise<{ cursor: string }> {
     const gmail = this.gmail(auth);
     // Take the cursor BEFORE listing, so changes made during the sync are picked up next time.
-    const profile = await this.call(auth, () => gmail.users.getProfile({ userId: 'me' }));
+    const profile = await this.call(auth, COST.getProfile, () => gmail.users.getProfile({ userId: 'me' }));
     const cursor = profile.data.historyId!;
 
     const ids = await this.listAllIds(auth, gmail);
@@ -302,7 +340,7 @@ export class GmailProvider implements MailProvider {
 
     try {
       do {
-        const res = await this.call(auth, () =>
+        const res = await this.call(auth, COST.history, () =>
           gmail.users.history.list({ userId: 'me', startHistoryId: cursor, pageToken, maxResults: 500 }),
         );
         for (const h of res.data.history ?? []) {
@@ -335,29 +373,4 @@ function labelColor(input: { colorBg?: string; colorText?: string }) {
   return input.colorBg && input.colorText
     ? { backgroundColor: input.colorBg, textColor: input.colorText }
     : undefined;
-}
-
-function errorStatus(err: unknown): number | undefined {
-  const e = err as { status?: number; code?: number | string; response?: { status?: number } };
-  return e.response?.status ?? e.status ?? (typeof e.code === 'number' ? e.code : undefined);
-}
-
-function errorCode(err: unknown): string | undefined {
-  const e = err as { response?: { data?: { error?: unknown } } };
-  return typeof e.response?.data?.error === 'string' ? e.response.data.error : undefined;
-}
-
-function isRetryable(err: unknown): boolean {
-  const status = errorStatus(err);
-  if (status === 429 || status === 500 || status === 502 || status === 503) return true;
-  if (status === 403) {
-    const e = err as { errors?: { reason?: string }[] };
-    return (e.errors ?? []).some((x) => x.reason === 'rateLimitExceeded' || x.reason === 'userRateLimitExceeded');
-  }
-  return false;
-}
-
-function errorMessage(err: unknown): string | undefined {
-  const e = err as { errors?: { message?: string }[]; message?: string };
-  return e.errors?.[0]?.message ?? e.message;
 }
