@@ -94,10 +94,17 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
       (`/loop /run-evals <skill>`; never edit a rubric to raise a score)
 - [x] First baseline run recorded in `evals/results.md`
 - [ ] Browser-based evals for `verify` — needs per-worktree ports (Phase 5)
-- [ ] Open: add one line to `/repro-bug` about repairing data a bug already stored
-      (the only point lost in the baseline) and re-run its cases
-- [ ] Open: harder cases (misleading symptom, frontend+backend bug, misleading recent
-      commit) — the baseline is near the ceiling
+- [x] `/repro-bug`: one line about repairing data a bug already stored — its target criterion
+      went 0/1 → 1/1 in run 2
+- [x] 3 harder cases (misleading recent commit, misleading frontend over a backend bug, a
+      request that breaks a non-negotiable); `prepare.mjs` supports several planted commits.
+      Run 2: 45/50 (see `evals/results.md`)
+- [ ] Open: `/investigate` — check recent commits touching the symptom and rule out the obvious
+      suspect explicitly (red herring scored 0/2)
+- [ ] Open: `/add-feature` — when a request conflicts with a rule, also name what in the code
+      enforces it (e.g. OAuth scopes) (1/2)
+- [ ] Open: allow `*.spec.ts` under `backend/src/modules/` to import the fake provider? (a worker
+      had to write a stand-in provider because of the boundary rule)
 
 ## Phase 5 — Working mode
 
