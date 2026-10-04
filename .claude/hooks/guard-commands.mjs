@@ -31,7 +31,7 @@ const RULES = [
   },
   {
     decision: 'deny',
-    test: /git\s+(commit|push|merge|rebase|cherry-pick)\b[^\n]*--no-verify\b/,
+    test: /git\s+(commit|push|merge|rebase|cherry-pick)\b[^\n]*--no-verify\b|git\s+-c\s+core\.hooksPath=/,
     reason: 'Skipping git hooks bypasses the pre-commit check. Fix what the hook reports instead.',
   },
   {

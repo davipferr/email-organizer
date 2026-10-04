@@ -1,0 +1,13 @@
+diff --git a/frontend/src/features/messages/useMessageActions.tsx b/frontend/src/features/messages/useMessageActions.tsx
+index eb87659..1668366 100644
+--- a/frontend/src/features/messages/useMessageActions.tsx
++++ b/frontend/src/features/messages/useMessageActions.tsx
+@@ -91,7 +91,7 @@ export function useMessageActions(accountId: string | undefined) {
+     archive: (ids: string[]) =>
+       perform({
+         run: () => changeLabels(ids, [], ['INBOX']),
+-        undo: () => changeLabels(ids, ['INBOX'], []),
++        undo: () => changeLabels(ids, [], ['INBOX']),
+         message: `${emails(ids.length)} archived`,
+       }),
+ 

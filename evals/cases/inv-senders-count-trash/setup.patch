@@ -1,0 +1,13 @@
+diff --git a/backend/src/modules/senders/senders.service.ts b/backend/src/modules/senders/senders.service.ts
+index 813c9a9..22ff035 100644
+--- a/backend/src/modules/senders/senders.service.ts
++++ b/backend/src/modules/senders/senders.service.ts
+@@ -38,7 +38,7 @@ export class SendersService {
+       Prisma.sql`m."accountId" = ${accountId}::uuid`,
+       Prisma.sql`NOT EXISTS (
+         SELECT 1 FROM message_labels ml JOIN labels l ON l.id = ml."labelId"
+-        WHERE ml."messageId" = m.id AND l."providerLabelId" IN ('TRASH', 'SPAM'))`,
++        WHERE ml."messageId" = m.id AND l."providerLabelId" IN ('SPAM'))`,
+     ];
+     if (search) {
+       const like = `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;

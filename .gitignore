@@ -6,3 +6,4 @@ backend/src/generated/
 .DS_Store
 .claude/.cache/
 .claude/settings.local.json
+.claude/worktrees/

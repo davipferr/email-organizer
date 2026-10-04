@@ -28,6 +28,7 @@ const cases = {
     'git push --force origin main',
     'git push -f',
     'git commit --no-verify -m x',
+    'git -c core.hooksPath=/dev/null commit -m x',
   ],
   ask: ['git reset --hard HEAD~1', 'git clean -fd', 'git checkout -- src/main.ts'],
   allow: [
