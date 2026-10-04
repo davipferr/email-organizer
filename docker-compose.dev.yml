@@ -1,0 +1,17 @@
+# Local development: only PostgreSQL runs in Docker (exposed on localhost:5433, so it does not clash with a locally installed PostgreSQL).
+# The backend and frontend run with npm on your machine.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql
+
+volumes:
+  pgdata-dev:

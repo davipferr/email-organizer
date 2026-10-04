@@ -1,0 +1,153 @@
+// Database schema — the single source of truth for the tables.
+// NO migrations: `prisma db push` creates/updates the tables when the backend starts.
+// db push refuses changes that would lose data (e.g. renaming a field), so the
+// backend will stop with a clear message instead of silently dropping columns.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MailProviderType {
+  GMAIL
+}
+
+enum SyncType {
+  FULL
+  INCREMENTAL
+}
+
+enum SyncStatus {
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum LabelType {
+  SYSTEM
+  USER
+}
+
+// A person who logs into the site.
+model User {
+  id          String        @id @default(uuid()) @db.Uuid
+  email       String        @unique
+  name        String?
+  avatarUrl   String?
+  createdAt   DateTime      @default(now())
+  lastLoginAt DateTime      @default(now())
+  accounts    MailAccount[]
+  sessions    Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id // random token stored in an httpOnly cookie
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// A connected mailbox. Provider-agnostic so Outlook/IMAP can be added later.
+model MailAccount {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       MailProviderType
+  emailAddress   String
+  accessToken    String // encrypted (AES-256-GCM)
+  refreshToken   String // encrypted (AES-256-GCM)
+  tokenExpiresAt DateTime
+  lastHistoryId  String? // cursor for the next incremental sync
+  lastSyncedAt   DateTime?
+  needsReconnect Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  syncRuns SyncRun[]
+  labels   Label[]
+  messages Message[]
+
+  @@unique([provider, emailAddress])
+  @@index([userId])
+  @@map("mail_accounts")
+}
+
+// One row per click on the Sync button.
+model SyncRun {
+  id         String      @id @default(uuid()) @db.Uuid
+  accountId  String      @db.Uuid
+  account    MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type       SyncType
+  status     SyncStatus  @default(RUNNING)
+  total      Int         @default(0)
+  processed  Int         @default(0)
+  error      String?
+  startedAt  DateTime    @default(now())
+  finishedAt DateTime?
+
+  @@index([accountId, startedAt(sort: Desc)])
+  @@map("sync_runs")
+}
+
+// Tags. Includes provider system labels (INBOX, TRASH, UNREAD...).
+model Label {
+  id              String         @id @default(uuid()) @db.Uuid
+  accountId       String         @db.Uuid
+  account         MailAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  providerLabelId String
+  name            String // nested tags use "Parent/Child"
+  type            LabelType
+  colorBg         String?
+  colorText       String?
+  messages        MessageLabel[]
+
+  @@unique([accountId, providerLabelId])
+  @@map("labels")
+}
+
+// Email METADATA only — bodies are fetched live from the provider when opened.
+model Message {
+  id                String         @id @default(uuid()) @db.Uuid
+  accountId         String         @db.Uuid
+  account           MailAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  providerMessageId String
+  threadId          String
+  fromEmail         String // lowercased
+  fromName          String?
+  fromDomain        String
+  subject           String?
+  snippet           String?
+  date              DateTime
+  sizeBytes         Int            @default(0)
+  isUnread          Boolean        @default(false)
+  listUnsubscribe   String?
+  labels            MessageLabel[]
+
+  @@unique([accountId, providerMessageId])
+  @@index([accountId, fromEmail])
+  @@index([accountId, fromDomain])
+  @@index([accountId, date(sort: Desc)])
+  @@map("messages")
+}
+
+model MessageLabel {
+  messageId String  @db.Uuid
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  labelId   String  @db.Uuid
+  label     Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, labelId])
+  @@index([labelId])
+  @@map("message_labels")
+}
