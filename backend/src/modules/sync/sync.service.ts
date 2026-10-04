@@ -1,13 +1,40 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { JobsService, QUEUES } from '../../jobs/jobs.service.js';
+import { AccountsService } from '../accounts/accounts.service.js';
+import { SyncStatus, SyncType } from '../../generated/prisma/enums.js';
+import type { SyncJobData } from './sync.worker.js';
 
 @Injectable()
 export class SyncService {
-  // Creates a SyncRun (FULL on first sync, INCREMENTAL afterwards) and queues a job.
-  start(_userId: string, _accountId: string, _forceFull: boolean): Promise<unknown> {
-    throw new NotImplementedException();
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobs: JobsService,
+    private readonly accounts: AccountsService,
+  ) {}
+
+  // The Sync button: FULL the first time (or when forced), INCREMENTAL afterwards.
+  async start(userId: string, accountId: string, forceFull: boolean) {
+    const account = await this.accounts.getOwnedAccount(userId, accountId);
+    const running = await this.prisma.syncRun.findFirst({ where: { accountId, status: SyncStatus.RUNNING } });
+    if (running) throw new ConflictException('A sync is already running');
+
+    const run = await this.prisma.syncRun.create({
+      data: {
+        accountId,
+        type: forceFull || !account.lastHistoryId ? SyncType.FULL : SyncType.INCREMENTAL,
+      },
+    });
+    await this.jobs.boss.send(QUEUES.SYNC, { syncRunId: run.id } satisfies SyncJobData);
+    return run;
   }
 
-  status(_userId: string, _accountId: string): Promise<unknown> {
-    throw new NotImplementedException();
+  async status(userId: string, accountId: string) {
+    const account = await this.accounts.getOwnedAccount(userId, accountId);
+    const [run, messageCount] = await Promise.all([
+      this.prisma.syncRun.findFirst({ where: { accountId }, orderBy: { startedAt: 'desc' } }),
+      this.prisma.message.count({ where: { accountId } }),
+    ]);
+    return { lastSyncedAt: account.lastSyncedAt, messageCount, run };
   }
 }

@@ -44,6 +44,51 @@ export interface MessagePage {
   totalEstimate?: number
 }
 
+export type JobStatus = 'RUNNING' | 'DONE' | 'FAILED'
+
+export interface SyncRun {
+  id: string
+  type: 'FULL' | 'INCREMENTAL'
+  status: JobStatus
+  total: number
+  processed: number
+  error: string | null
+  startedAt: string
+  finishedAt: string | null
+}
+
+export interface SyncStatus {
+  lastSyncedAt: string | null
+  messageCount: number
+  run: SyncRun | null
+}
+
+export interface SenderGroup {
+  key: string // email or domain
+  name: string | null
+  senders: number
+  total: number
+  unread: number
+  latest: string
+  sizeBytes: number
+}
+
+export interface SendersPage {
+  lastSyncedAt: string | null
+  totalGroups: number
+  page: number
+  pageSize: number
+  senders: SenderGroup[]
+}
+
+export interface BulkAction {
+  id: string
+  status: JobStatus
+  total: number
+  processed: number
+  error: string | null
+}
+
 export interface MailLabel {
   providerLabelId: string
   name: string

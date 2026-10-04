@@ -1,13 +1,16 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { SessionGuard } from '../../common/auth/session.guard.js';
 import { CurrentUserId } from '../../common/auth/current-user.decorator.js';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { MessagesService } from './messages.service.js';
+import { BulkActionsService } from './bulk-actions.service.js';
 import {
+  bulkSchema,
   labelsChangeSchema,
   listMessagesSchema,
   moveSchema,
   trashSchema,
+  type BulkInput,
   type LabelsChangeInput,
   type ListMessagesInput,
   type MoveInput,
@@ -18,7 +21,10 @@ import {
 @Controller('accounts/:accountId/messages')
 @UseGuards(SessionGuard)
 export class MessagesController {
-  constructor(private readonly messages: MessagesService) {}
+  constructor(
+    private readonly messages: MessagesService,
+    private readonly bulk: BulkActionsService,
+  ) {}
 
   @Get()
   list(
@@ -27,6 +33,26 @@ export class MessagesController {
     @Query(new ZodValidationPipe(listMessagesSchema)) query: ListMessagesInput,
   ) {
     return this.messages.list(userId, accountId, query);
+  }
+
+  // Every email from a sender / matching a search, as a background job. Returns the job to poll.
+  @Post('bulk')
+  @HttpCode(202)
+  startBulk(
+    @CurrentUserId() userId: string,
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Body(new ZodValidationPipe(bulkSchema)) body: BulkInput,
+  ) {
+    return this.bulk.start(userId, accountId, body);
+  }
+
+  @Get('bulk/:bulkActionId')
+  bulkStatus(
+    @CurrentUserId() userId: string,
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Param('bulkActionId', ParseUUIDPipe) bulkActionId: string,
+  ) {
+    return this.bulk.status(userId, accountId, bulkActionId);
   }
 
   @Get(':messageId')

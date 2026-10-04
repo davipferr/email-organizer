@@ -74,9 +74,10 @@ model MailAccount {
   needsReconnect Boolean          @default(false)
   createdAt      DateTime         @default(now())
 
-  syncRuns SyncRun[]
-  labels   Label[]
-  messages Message[]
+  syncRuns    SyncRun[]
+  labels      Label[]
+  messages    Message[]
+  bulkActions BulkAction[]
 
   @@unique([provider, emailAddress])
   @@index([userId])
@@ -98,6 +99,31 @@ model SyncRun {
 
   @@index([accountId, startedAt(sort: Desc)])
   @@map("sync_runs")
+}
+
+enum BulkActionType {
+  TRASH
+  MODIFY_LABELS
+}
+
+// An action on every email from a sender / matching a search, run as a background job.
+model BulkAction {
+  id             String         @id @default(uuid()) @db.Uuid
+  accountId      String         @db.Uuid
+  account        MailAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type           BulkActionType
+  selector       Json // { from } | { q }
+  addLabelIds    String[]
+  removeLabelIds String[]
+  status         SyncStatus     @default(RUNNING)
+  total          Int            @default(0)
+  processed      Int            @default(0)
+  error          String?
+  startedAt      DateTime       @default(now())
+  finishedAt     DateTime?
+
+  @@index([accountId, startedAt(sort: Desc)])
+  @@map("bulk_actions")
 }
 
 // Tags. Includes provider system labels (INBOX, TRASH, UNREAD...).
@@ -132,6 +158,7 @@ model Message {
   sizeBytes         Int            @default(0)
   isUnread          Boolean        @default(false)
   listUnsubscribe   String?
+  syncRunId         String?        @db.Uuid // last full sync that saw it; older rows are deleted
   labels            MessageLabel[]
 
   @@unique([accountId, providerMessageId])

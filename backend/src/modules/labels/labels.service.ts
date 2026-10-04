@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AccountsService } from '../accounts/accounts.service.js';
-import type { MailLabel } from '../../mail-providers/mail-provider.js';
+import { MessageStoreService } from '../sync/message-store.service.js';
+import type { MailLabel, MailProvider, ProviderAuth } from '../../mail-providers/mail-provider.js';
 import type { CreateLabelInput, UpdateLabelInput } from './labels.controller.js';
 
 @Injectable()
 export class LabelsService {
-  constructor(private readonly accounts: AccountsService) {}
+  constructor(
+    private readonly accounts: AccountsService,
+    private readonly store: MessageStoreService,
+  ) {}
 
   async list(userId: string, accountId: string, withCounts: boolean) {
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
@@ -15,7 +19,9 @@ export class LabelsService {
 
   async create(userId: string, accountId: string, input: CreateLabelInput) {
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
-    return provider.createLabel(auth, input);
+    const created = await provider.createLabel(auth, input);
+    await this.refreshStored(accountId, provider, auth);
+    return created;
   }
 
   // Renaming "Finance" also renames its children ("Finance/Nubank" → "Money/Nubank"),
@@ -33,6 +39,7 @@ export class LabelsService {
         });
       }
     }
+    await this.refreshStored(accountId, provider, auth);
     return updated;
   }
 
@@ -45,7 +52,13 @@ export class LabelsService {
     const toDelete = [label];
     if (withChildren) toDelete.push(...labels.filter((l) => l.name.startsWith(`${label.name}/`)));
     for (const l of toDelete) await provider.deleteLabel(auth, l.providerLabelId);
+    await this.refreshStored(accountId, provider, auth);
     return { deleted: toDelete.length };
+  }
+
+  // Keeps the stored tags (used by Sync / Senders) in step with changes made here.
+  private async refreshStored(accountId: string, provider: MailProvider, auth: ProviderAuth) {
+    await this.store.syncLabels(accountId, await provider.listLabels(auth));
   }
 
   private userLabel(labels: MailLabel[], labelId: string, action: string): MailLabel {

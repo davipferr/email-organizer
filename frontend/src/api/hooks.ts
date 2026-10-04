@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, apiPatch, apiPost } from './client.ts'
-import type { MailLabel, MailMessageFull, Me, MessagePage } from './types.ts'
+import type { MailLabel, MailMessageFull, Me, MessagePage, SendersPage, SyncStatus } from './types.ts'
 
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => apiGet<Me>('/auth/me'), staleTime: Infinity })
@@ -81,6 +81,42 @@ export function useMessage(accountId: string | undefined, messageId: string | nu
     queryFn: () => apiGet<MailMessageFull>(`/accounts/${accountId}/messages/${messageId}`),
     enabled: !!accountId && !!messageId,
     staleTime: Infinity,
+  })
+}
+
+// Polls every 1.5 s while a sync is running.
+export function useSyncStatus(accountId: string | undefined) {
+  return useQuery({
+    queryKey: ['sync', accountId],
+    queryFn: () => apiGet<SyncStatus>(`/accounts/${accountId}/sync`),
+    enabled: !!accountId,
+    refetchInterval: (query) => (query.state.data?.run?.status === 'RUNNING' ? 1500 : false),
+  })
+}
+
+export function useStartSync(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (full: boolean) => apiPost(`/accounts/${accountId}/sync`, full ? { force: 'full' } : {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sync', accountId] }),
+  })
+}
+
+export interface SendersQuery {
+  groupBy: 'email' | 'domain'
+  sort: 'count' | 'latest' | 'size'
+  search: string
+  page: number
+}
+
+export function useSenders(accountId: string | undefined, query: SendersQuery) {
+  const params = new URLSearchParams({ groupBy: query.groupBy, sort: query.sort, page: String(query.page) })
+  if (query.search.trim()) params.set('search', query.search.trim())
+  return useQuery({
+    queryKey: ['senders', accountId, query],
+    queryFn: () => apiGet<SendersPage>(`/accounts/${accountId}/senders?${params}`),
+    enabled: !!accountId,
+    placeholderData: keepPreviousData,
   })
 }
 

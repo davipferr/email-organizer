@@ -22,7 +22,9 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     await this.boss.start();
     for (const queue of Object.values(QUEUES)) {
-      await this.boss.createQueue(queue);
+      // A full sync of a big mailbox can take a while; never retry automatically —
+      // the user clicks Sync again instead.
+      await this.boss.createQueue(queue, { expireInSeconds: 6 * 3600, retryLimit: 0 });
     }
   }
 

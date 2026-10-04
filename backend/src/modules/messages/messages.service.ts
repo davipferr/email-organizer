@@ -1,13 +1,16 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AccountsService } from '../accounts/accounts.service.js';
-import type { MessageSelector } from '../../mail-providers/mail-provider.js';
+import { MessageStoreService } from '../sync/message-store.service.js';
 import type { LabelsChangeInput, ListMessagesInput, MoveInput, TrashInput } from './messages.schemas.js';
 
-// Live from the provider. Selections of ids run immediately; whole-sender / search
-// selections will run as pg-boss BULK_ACTION jobs with progress (Senders step).
+// Live from the provider. Actions on selected emails run immediately and are also
+// applied to the synced rows, so the Senders view stays correct without a new sync.
 @Injectable()
 export class MessagesService {
-  constructor(private readonly accounts: AccountsService) {}
+  constructor(
+    private readonly accounts: AccountsService,
+    private readonly store: MessageStoreService,
+  ) {}
 
   async list(userId: string, accountId: string, query: ListMessagesInput) {
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
@@ -19,38 +22,32 @@ export class MessagesService {
     return provider.getMessage(auth, messageId);
   }
 
-  async trash(userId: string, accountId: string, input: TrashInput) {
+  async trash(userId: string, accountId: string, { selector: { ids } }: TrashInput) {
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
-    const ids = this.selectedIds(input.selector);
     await provider.trash(auth, ids);
+    await this.store.applyLabelChange(accountId, ids, ['TRASH'], []);
     return { affected: ids.length };
   }
 
-  async untrash(userId: string, accountId: string, input: TrashInput) {
+  async untrash(userId: string, accountId: string, { selector: { ids } }: TrashInput) {
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
-    const ids = this.selectedIds(input.selector);
     await provider.untrash(auth, ids);
+    await this.store.applyLabelChange(accountId, ids, [], ['TRASH']);
     return { affected: ids.length };
   }
 
-  async changeLabels(userId: string, accountId: string, input: LabelsChangeInput) {
+  async changeLabels(userId: string, accountId: string, { selector: { ids }, add, remove }: LabelsChangeInput) {
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
-    const ids = this.selectedIds(input.selector);
-    await provider.modifyLabels(auth, ids, input.add, input.remove);
+    await provider.modifyLabels(auth, ids, add, remove);
+    await this.store.applyLabelChange(accountId, ids, add, remove);
     return { affected: ids.length };
   }
 
-  async move(userId: string, accountId: string, input: MoveInput) {
+  async move(userId: string, accountId: string, { selector: { ids }, to, from }: MoveInput) {
+    const remove = from === to ? [] : [from];
     const { provider, auth } = await this.accounts.getProviderContext(userId, accountId);
-    const ids = this.selectedIds(input.selector);
-    await provider.modifyLabels(auth, ids, [input.to], input.from === input.to ? [] : [input.from]);
+    await provider.modifyLabels(auth, ids, [to], remove);
+    await this.store.applyLabelChange(accountId, ids, [to], remove);
     return { affected: ids.length };
-  }
-
-  // TODO (Senders step): queue { from } / { q } selectors as BULK_ACTION jobs,
-  // and update the synced Message rows after each action.
-  private selectedIds(selector: MessageSelector): string[] {
-    if ('ids' in selector) return selector.ids;
-    throw new NotImplementedException('Bulk actions by sender or search are not available yet');
   }
 }
