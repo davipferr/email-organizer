@@ -106,7 +106,8 @@ export interface MailProvider {
   untrash(auth: ProviderAuth, ids: string[]): Promise<void>;
 
   // Labels
-  listLabels(auth: ProviderAuth): Promise<MailLabel[]>;
+  // withCounts adds messagesTotal/messagesUnread (one extra call per tag).
+  listLabels(auth: ProviderAuth, options?: { withCounts?: boolean }): Promise<MailLabel[]>;
   createLabel(auth: ProviderAuth, input: { name: string; colorBg?: string; colorText?: string }): Promise<MailLabel>;
   updateLabel(auth: ProviderAuth, id: string, input: { name?: string; colorBg?: string; colorText?: string }): Promise<MailLabel>;
   deleteLabel(auth: ProviderAuth, id: string): Promise<void>;

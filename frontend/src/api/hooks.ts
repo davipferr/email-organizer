@@ -1,5 +1,5 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
-import { apiGet, apiPost } from './client.ts'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiDelete, apiGet, apiPatch, apiPost } from './client.ts'
 import type { MailLabel, MailMessageFull, Me, MessagePage } from './types.ts'
 
 export function useMe() {
@@ -17,6 +17,41 @@ export function useLabels(accountId: string | undefined) {
     queryFn: () => apiGet<MailLabel[]>(`/accounts/${accountId}/labels`),
     enabled: !!accountId,
     staleTime: 5 * 60_000,
+  })
+}
+
+// Same list plus email counts per tag (slower) — for the Manage tags page.
+export function useLabelsWithCounts(accountId: string | undefined) {
+  return useQuery({
+    queryKey: ['labels', accountId, 'counts'],
+    queryFn: () => apiGet<MailLabel[]>(`/accounts/${accountId}/labels?counts=true`),
+    enabled: !!accountId,
+  })
+}
+
+export interface LabelInput {
+  name: string
+  colorBg?: string
+  colorText?: string
+}
+
+export function useSaveLabel(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: LabelInput }) =>
+      id
+        ? apiPatch<MailLabel>(`/accounts/${accountId}/labels/${id}`, input)
+        : apiPost<MailLabel>(`/accounts/${accountId}/labels`, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['labels', accountId] }),
+  })
+}
+
+export function useDeleteLabel(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, withChildren }: { id: string; withChildren: boolean }) =>
+      apiDelete<{ deleted: number }>(`/accounts/${accountId}/labels/${id}?children=${withChildren}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['labels', accountId] }),
   })
 }
 

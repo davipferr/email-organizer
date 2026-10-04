@@ -19,9 +19,14 @@ export type UpdateLabelInput = z.infer<typeof updateLabelSchema>;
 export class LabelsController {
   constructor(private readonly labels: LabelsService) {}
 
+  // ?counts=true adds email counts per tag (slower; used by the Manage tags page).
   @Get()
-  list(@CurrentUserId() userId: string, @Param('accountId', ParseUUIDPipe) accountId: string) {
-    return this.labels.list(userId, accountId);
+  list(
+    @CurrentUserId() userId: string,
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Query('counts') counts?: string,
+  ) {
+    return this.labels.list(userId, accountId, counts === 'true');
   }
 
   @Post()

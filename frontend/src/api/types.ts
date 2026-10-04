@@ -50,4 +50,6 @@ export interface MailLabel {
   type: 'SYSTEM' | 'USER'
   colorBg?: string
   colorText?: string
+  messagesTotal?: number
+  messagesUnread?: number
 }

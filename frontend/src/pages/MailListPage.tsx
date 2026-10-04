@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
-import { ActionIcon, Alert, Center, Group, Loader, Paper, Table, Text, Title } from '@mantine/core'
+import { ActionIcon, Alert, Center, Checkbox, Group, Loader, Paper, Table, Text, Title } from '@mantine/core'
 import { IconChevronLeft, IconChevronRight, IconRefresh } from '@tabler/icons-react'
 import { useCurrentAccount, useLabels, useMessages } from '../api/hooks.ts'
-import type { MailLabel } from '../api/types.ts'
+import type { MailLabel, MailMessageSummary } from '../api/types.ts'
 import { formatListDate, senderName } from '../utils/format.ts'
 import { LabelBadge } from '../components/LabelBadge.tsx'
 import { MessageDrawer } from '../components/MessageDrawer.tsx'
+import { MessageActionsBar } from '../features/messages/MessageActionsBar.tsx'
+import { useMessageActions } from '../features/messages/useMessageActions.tsx'
+
+const SYSTEM_TITLES: Record<string, string> = { INBOX: 'Inbox', STARRED: 'Starred', SENT: 'Sent', TRASH: 'Trash' }
 
 // Inbox, a label, or search results — all live from Gmail.
 export function MailListPage() {
@@ -14,21 +18,24 @@ export function MailListPage() {
   const [params] = useSearchParams()
   const q = params.get('q') ?? undefined
   const labelId = q ? undefined : (routeLabelId ?? 'INBOX')
-  // A new key resets paging and the open email when the folder or search changes.
+  // A new key resets paging, selection and the open email when the folder or search changes.
   return <MailList key={`${labelId}|${q}`} labelId={labelId} q={q} />
 }
 
 function MailList({ labelId, q }: { labelId?: string; q?: string }) {
   const account = useCurrentAccount()
+  const actions = useMessageActions(account?.id)
   const { data: labels } = useLabels(account?.id)
   const labelsById = useMemo(
     () => new Map<string, MailLabel>((labels ?? []).map((l) => [l.providerLabelId, l])),
     [labels],
   )
+  const userLabels = useMemo(() => (labels ?? []).filter((l) => l.type === 'USER'), [labels])
 
   // Gmail pages forward only, so keep the tokens of the pages already visited.
   const [pageTokens, setPageTokens] = useState<(string | undefined)[]>([undefined])
   const [openId, setOpenId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const pageIndex = pageTokens.length - 1
   const { data, isLoading, isError, isFetching, refetch } = useMessages(account?.id, {
@@ -37,18 +44,40 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
     pageToken: pageTokens[pageIndex],
   })
 
-  const title = q ? `Search: ${q}` : labelId === 'INBOX' ? 'Inbox' : (labelsById.get(labelId!)?.name ?? labelId)
   const messages = data?.messages ?? []
-  const from = pageIndex * 50 + (messages.length ? 1 : 0)
+  const selectedMessages = messages.filter((m) => selected.has(m.providerMessageId))
+  const allSelected = messages.length > 0 && selectedMessages.length === messages.length
+  const title = q
+    ? `Search: ${q}`
+    : (SYSTEM_TITLES[labelId!] ?? labelsById.get(labelId!)?.name ?? labelId)
+  const first = pageIndex * 50 + 1
+
+  const changePage = (tokens: (string | undefined)[]) => {
+    setSelected(new Set())
+    setPageTokens(tokens)
+  }
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const open = (m: MailMessageSummary) => {
+    setOpenId(m.providerMessageId)
+    if (m.isUnread) void actions.markRead([m.providerMessageId], true, { silent: true })
+  }
 
   return (
     <>
       <Group justify="space-between" mb="md">
         <Title order={3}>{title}</Title>
         <Group gap="xs">
-          {isFetching && <Loader size="xs" />}
+          {(isFetching || actions.busy) && <Loader size="xs" />}
           <Text size="sm" c="dimmed">
-            {messages.length ? `${from}–${from + messages.length - 1}` : ''}
+            {messages.length ? `${first}–${first + messages.length - 1}` : ''}
           </Text>
           <ActionIcon variant="default" aria-label="Refresh" onClick={() => refetch()}>
             <IconRefresh size={16} />
@@ -57,7 +86,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
             variant="default"
             aria-label="Previous page"
             disabled={pageIndex === 0}
-            onClick={() => setPageTokens((t) => t.slice(0, -1))}
+            onClick={() => changePage(pageTokens.slice(0, -1))}
           >
             <IconChevronLeft size={16} />
           </ActionIcon>
@@ -65,16 +94,45 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
             variant="default"
             aria-label="Next page"
             disabled={!data?.nextPageToken}
-            onClick={() => setPageTokens((t) => [...t, data!.nextPageToken])}
+            onClick={() => changePage([...pageTokens, data!.nextPageToken])}
           >
             <IconChevronRight size={16} />
           </ActionIcon>
         </Group>
       </Group>
 
-      {isError && <Alert color="red">Couldn't load your emails. Try again.</Alert>}
+      {isError && <Alert color="red" mb="md">Couldn't load your emails. Try again.</Alert>}
 
       <Paper withBorder radius="md">
+        <Group px="sm" py={8} gap="sm" mih={46} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+          <Checkbox
+            aria-label="Select all"
+            checked={allSelected}
+            indeterminate={selectedMessages.length > 0 && !allSelected}
+            onChange={() =>
+              setSelected(allSelected ? new Set() : new Set(messages.map((m) => m.providerMessageId)))
+            }
+          />
+          {selectedMessages.length > 0 ? (
+            <>
+              <Text size="sm" fw={500}>
+                {selectedMessages.length} selected
+              </Text>
+              <MessageActionsBar
+                messages={selectedMessages}
+                viewLabelId={labelId}
+                userLabels={userLabels}
+                actions={actions}
+                onRemoved={() => setSelected(new Set())}
+              />
+            </>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Select emails to tag, move or trash them
+            </Text>
+          )}
+        </Group>
+
         {isLoading ? (
           <Center p="xl">
             <Loader />
@@ -88,11 +146,24 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
             <Table.Tbody>
               {messages.map((m) => {
                 const fw = m.isUnread ? 600 : 400
-                const userLabels = m.labelIds
+                const isSelected = selected.has(m.providerMessageId)
+                const rowLabels = m.labelIds
                   .map((id) => labelsById.get(id))
                   .filter((l): l is MailLabel => l?.type === 'USER')
                 return (
-                  <Table.Tr key={m.providerMessageId} onClick={() => setOpenId(m.providerMessageId)} style={{ cursor: 'pointer' }}>
+                  <Table.Tr
+                    key={m.providerMessageId}
+                    onClick={() => open(m)}
+                    bg={isSelected ? 'var(--mantine-primary-color-light)' : undefined}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <Table.Td w={44} onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        aria-label="Select email"
+                        checked={isSelected}
+                        onChange={() => toggle(m.providerMessageId)}
+                      />
+                    </Table.Td>
                     <Table.Td w={200}>
                       <Text size="sm" fw={fw} truncate title={m.from.email}>
                         {senderName(m.from)}
@@ -100,7 +171,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
                     </Table.Td>
                     <Table.Td>
                       <Group gap={6} wrap="nowrap">
-                        {userLabels.map((l) => (
+                        {rowLabels.map((l) => (
                           <LabelBadge key={l.providerLabelId} label={l} />
                         ))}
                         <Text size="sm" truncate>
@@ -126,7 +197,15 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
         )}
       </Paper>
 
-      <MessageDrawer accountId={account?.id} messageId={openId} labelsById={labelsById} onClose={() => setOpenId(null)} />
+      <MessageDrawer
+        accountId={account?.id}
+        messageId={openId}
+        labelsById={labelsById}
+        userLabels={userLabels}
+        viewLabelId={labelId}
+        actions={actions}
+        onClose={() => setOpenId(null)}
+      />
     </>
   )
 }

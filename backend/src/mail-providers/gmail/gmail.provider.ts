@@ -3,7 +3,7 @@ import { google, type gmail_v1 } from 'googleapis';
 import { MailProviderType } from '../../generated/prisma/enums.js';
 import { AppConfig } from '../../config/config.module.js';
 import { chunk, mapLimit, sleep } from '../../common/async.js';
-import { MissingScopesError, ProviderAuthError, ProviderNotFoundError } from '../provider-errors.js';
+import { MissingScopesError, ProviderAuthError, ProviderNotFoundError, ProviderRequestError } from '../provider-errors.js';
 import { toFull, toLabel, toSummary } from './gmail-parsers.js';
 import type {
   ListMessagesQuery,
@@ -84,6 +84,8 @@ export class GmailProvider implements MailProvider {
           throw new ProviderAuthError();
         }
         if (status === 404) throw new ProviderNotFoundError();
+        if (status === 409) throw new ProviderRequestError(409, 'A tag with this name already exists');
+        if (status === 400) throw new ProviderRequestError(400, errorMessage(err) ?? 'Gmail rejected the request');
         if (isRetryable(err) && attempt < 5) {
           await sleep(2 ** attempt * 500 + Math.random() * 250);
           continue;
@@ -220,10 +222,18 @@ export class GmailProvider implements MailProvider {
 
   // ---------- Labels ----------
 
-  async listLabels(auth: ProviderAuth): Promise<MailLabel[]> {
+  async listLabels(auth: ProviderAuth, options: { withCounts?: boolean } = {}): Promise<MailLabel[]> {
     const gmail = this.gmail(auth);
     const res = await this.call(auth, () => gmail.users.labels.list({ userId: 'me' }));
-    return (res.data.labels ?? []).map(toLabel);
+    const labels = res.data.labels ?? [];
+    if (!options.withCounts) return labels.map(toLabel);
+
+    // labels.list has no counts; fetch them for the user's tags.
+    return mapLimit(labels, CONCURRENCY, async (label) => {
+      if (label.type === 'system') return toLabel(label);
+      const full = await this.call(auth, () => gmail.users.labels.get({ userId: 'me', id: label.id! }));
+      return toLabel(full.data);
+    });
   }
 
   async createLabel(
@@ -345,4 +355,9 @@ function isRetryable(err: unknown): boolean {
     return (e.errors ?? []).some((x) => x.reason === 'rateLimitExceeded' || x.reason === 'userRateLimitExceeded');
   }
   return false;
+}
+
+function errorMessage(err: unknown): string | undefined {
+  const e = err as { errors?: { message?: string }[]; message?: string };
+  return e.errors?.[0]?.message ?? e.message;
 }

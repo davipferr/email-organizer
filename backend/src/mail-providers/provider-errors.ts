@@ -10,3 +10,13 @@ export class ProviderNotFoundError extends Error {}
 
 // The user unticked a required permission on the consent screen.
 export class MissingScopesError extends Error {}
+
+// The provider refused the request (e.g. duplicate or invalid tag name).
+export class ProviderRequestError extends Error {
+  constructor(
+    readonly status: 400 | 409,
+    message: string,
+  ) {
+    super(message);
+  }
+}

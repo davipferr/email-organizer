@@ -6,11 +6,16 @@ import { useMessage } from '../api/hooks.ts'
 import type { MailLabel } from '../api/types.ts'
 import { formatLongDate } from '../utils/format.ts'
 import { LabelBadge } from './LabelBadge.tsx'
+import { MessageActionsBar } from '../features/messages/MessageActionsBar.tsx'
+import type { MessageActions } from '../features/messages/useMessageActions.tsx'
 
 interface Props {
   accountId: string | undefined
   messageId: string | null
   labelsById: Map<string, MailLabel>
+  userLabels: MailLabel[]
+  viewLabelId?: string
+  actions: MessageActions
   onClose: () => void
 }
 
@@ -31,10 +36,15 @@ function emailDocument(html: string | undefined, text: string | undefined): stri
   return `<!doctype html><html><head>${HEAD}</head><body><pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(text ?? '')}</pre></body></html>`
 }
 
-export function MessageDrawer({ accountId, messageId, labelsById, onClose }: Props) {
+export function MessageDrawer({ accountId, messageId, labelsById, userLabels, viewLabelId, actions, onClose }: Props) {
   const { data: message, isLoading, isError } = useMessage(accountId, messageId)
-  const srcDoc = useMemo(() => (message ? emailDocument(message.html, message.text) : ''), [message])
-  const userLabels = (message?.labelIds ?? [])
+  const hasMessage = !!message
+  // Keyed on the content so re-fetches (e.g. after tagging) don't reload the iframe.
+  const srcDoc = useMemo(
+    () => (hasMessage ? emailDocument(message.html, message.text) : ''),
+    [hasMessage, message?.html, message?.text],
+  )
+  const messageTags = (message?.labelIds ?? [])
     .map((id) => labelsById.get(id))
     .filter((l): l is MailLabel => l?.type === 'USER')
 
@@ -54,6 +64,13 @@ export function MessageDrawer({ accountId, messageId, labelsById, onClose }: Pro
       {isError && <Text c="red">Couldn't load this email. Try again.</Text>}
       {message && (
         <Stack gap="sm">
+          <MessageActionsBar
+            messages={[message]}
+            viewLabelId={viewLabelId}
+            userLabels={userLabels}
+            actions={actions}
+            onRemoved={onClose}
+          />
           <Stack gap={2}>
             <Group gap={6}>
               <Text fw={500}>{message.from.name ?? message.from.email}</Text>
@@ -65,9 +82,9 @@ export function MessageDrawer({ accountId, messageId, labelsById, onClose }: Pro
               To {message.to.map((a) => a.name ?? a.email).join(', ') || '—'} · {formatLongDate(message.date)}
             </Text>
           </Stack>
-          {userLabels.length > 0 && (
+          {messageTags.length > 0 && (
             <Group gap={4}>
-              {userLabels.map((l) => (
+              {messageTags.map((l) => (
                 <LabelBadge key={l.providerLabelId} label={l} />
               ))}
             </Group>
@@ -77,7 +94,7 @@ export function MessageDrawer({ accountId, messageId, labelsById, onClose }: Pro
             title="Email content"
             sandbox="allow-popups allow-popups-to-escape-sandbox"
             srcDoc={srcDoc}
-            style={{ width: '100%', height: 'calc(100vh - 220px)', border: 0, borderRadius: 8, background: '#fff' }}
+            style={{ width: '100%', height: 'calc(100vh - 260px)', border: 0, borderRadius: 8, background: '#fff' }}
           />
         </Stack>
       )}

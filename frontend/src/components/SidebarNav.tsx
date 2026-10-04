@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import { NavLink as RouterNavLink, useLocation } from 'react-router'
-import { Box, Group, NavLink, ScrollArea, Skeleton, Text } from '@mantine/core'
-import { IconInbox, IconSend, IconStar, IconTags, IconTrash, IconUsers } from '@tabler/icons-react'
+import { ActionIcon, Box, Group, NavLink, ScrollArea, Skeleton, Text } from '@mantine/core'
+import { IconInbox, IconPlus, IconSend, IconStar, IconTags, IconTrash, IconUsers } from '@tabler/icons-react'
 import { useCurrentAccount, useLabels } from '../api/hooks.ts'
 import type { MailLabel } from '../api/types.ts'
+import { openTagForm } from '../features/tags/TagForm.tsx'
 
 const systemItems = [
   { label: 'Inbox', to: '/inbox', icon: IconInbox },
@@ -101,10 +102,13 @@ export function SidebarNav() {
         active={pathname === '/tags'}
       />
 
-      <Group px="sm" mt="md" mb={4}>
+      <Group justify="space-between" px="sm" mt="md" mb={4}>
         <Text size="xs" c="dimmed">
           Tags
         </Text>
+        <ActionIcon variant="subtle" size="sm" aria-label="New tag" onClick={() => openTagForm()}>
+          <IconPlus size={14} />
+        </ActionIcon>
       </Group>
       {isLoading ? (
         <Skeleton h={28} mx="sm" />

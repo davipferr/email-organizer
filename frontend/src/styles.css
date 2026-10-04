@@ -1,0 +1,4 @@
+/* Hover background for rows in the tag picker */
+.label-picker-item:hover {
+  background: var(--mantine-color-default-hover);
+}

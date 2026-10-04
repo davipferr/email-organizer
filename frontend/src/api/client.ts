@@ -12,6 +12,15 @@ export class ApiError extends Error {
   }
 }
 
+// Readable message for notifications.
+export function errorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    const msg = (err.body as { message?: unknown } | undefined)?.message
+    if (typeof msg === 'string') return msg
+  }
+  return 'Something went wrong. Try again.'
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
