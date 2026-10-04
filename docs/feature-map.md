@@ -7,8 +7,9 @@ humans) verifying changes in the browser. Keep it updated when a feature changes
 
 1. PostgreSQL: `docker compose -f docker-compose.dev.yml up -d`
 2. `DEV_LOGIN=true` in `.env`; schema applied (`npm --prefix backend run db:push`)
-3. Start `backend` and `frontend` from `.claude/launch.json` (preview tools). The backend takes
-   ~10 s to compile; `/api/*` returns 502 until then.
+3. Start `backend` and `frontend` from `.claude/launch.json` (preview tools) — or, in a
+   worktree, your slot's `backend-N`/`frontend-N` (see `docs/working-with-claude.md`; ports
+   below assume slot 0). The backend takes ~10 s to compile; `/api/*` returns 502 until then.
 4. Open **http://localhost:5173/api/auth/dev-login?reset=1**: logs in as `dev@fake.local`, resets
    the fake mailbox to the fixtures, deletes all synced data (Senders shows "Never synced"),
    and lands on `/inbox`. Same as the **Dev login (fake mailbox)** button on `/login`.

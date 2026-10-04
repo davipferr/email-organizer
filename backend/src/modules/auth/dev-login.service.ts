@@ -50,6 +50,7 @@ export class DevLoginService {
     });
 
     await this.auth.startSession(user.id, res);
-    res.redirect(this.auth.appUrl('/inbox'));
+    // Relative, so each parallel dev instance (its own port) lands on itself.
+    res.redirect('/inbox');
   }
 }

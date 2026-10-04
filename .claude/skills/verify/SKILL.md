@@ -21,9 +21,12 @@ Never test with Google login or a real mailbox — only the fake mailbox.
 ## 2. Start the app
 
 1. `npm run check` first — no point clicking through a build that doesn't typecheck.
-2. `preview_start` with `name: "backend"` and `name: "frontend"` (reuses running servers).
+2. Pick your slot: main checkout = 0 (`backend`, `frontend`); in a worktree, the slot the user
+   gave you (`backend-1`/`frontend-1`, `backend-2`/`frontend-2`). `preview_start` both by name
+   (reuses running servers). Frontend URL = `http://localhost:<5173 + 100 × slot>`; use it
+   everywhere below instead of `localhost:5173`.
 3. Wait until it's ready — don't sleep blindly:
-   `node .claude/skills/verify/wait-for-app.mjs`
+   `node .claude/skills/verify/wait-for-app.mjs 90 <slot>`
    If it times out: PostgreSQL may be down (`docker compose -f docker-compose.dev.yml up -d`),
    or the backend failed to compile — read `preview_logs` for the backend. If the logs say the
    server **exited** with a `taskkill ... /T /F` error, the Nest watcher crashed on Windows
@@ -33,7 +36,8 @@ Never test with Google login or a real mailbox — only the fake mailbox.
 
 ## 3. Log in with a clean mailbox
 
-`navigate` to `http://localhost:5173/api/auth/dev-login?reset=1` → lands on `/inbox`.
+`navigate` to `<frontend URL>/api/auth/dev-login?reset=1` → lands on `/inbox`. Each slot has
+its own database and cookie, so resetting your slot never affects another session's.
 - 404 → `DEV_LOGIN=true` is missing from `.env`. Stop and ask the user to add it
   (never read or edit `.env` yourself).
 - Reset restores the fixtures and clears synced data, so Senders shows "Never synced" —

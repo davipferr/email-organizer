@@ -9,8 +9,9 @@ export class AppConfig extends ConfigService<Env, true> {}
 @Module({
   imports: [
     NestConfigModule.forRoot({
-      // Local dev reads the root .env; in Docker the variables come from compose.
-      envFilePath: ['../.env', '.env'],
+      // Local dev reads the root .env (ENV_FILE points a worktree at the main checkout's);
+      // in Docker the variables come from compose.
+      envFilePath: [process.env['ENV_FILE'], '../.env', '.env'].filter((p): p is string => !!p),
       validate: (raw) => envSchema.parse(raw),
     }),
   ],

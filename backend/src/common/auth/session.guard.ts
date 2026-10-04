@@ -2,7 +2,9 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
-export const SESSION_COOKIE = 'sid';
+// Browsers share cookies across ports, so each parallel dev instance (scripts/dev.mjs slot,
+// which sets DB_SUFFIX) needs its own cookie name or logging into one logs out the others.
+export const SESSION_COOKIE = `sid${process.env['DB_SUFFIX'] ?? ''}`;
 
 export interface AuthedRequest extends Request {
   userId: string;

@@ -7,6 +7,7 @@ database or frontend. See `README.md` for setup and deploy.
 - `backend/` — NestJS + Prisma (PostgreSQL) + pg-boss. Rules in `backend/CLAUDE.md`.
 - `frontend/` — React + Vite + Mantine + TanStack Query. Rules in `frontend/CLAUDE.md`.
 - `docs/feature-map.md` — how to reach and check every feature in the browser.
+- `docs/working-with-claude.md` — day-to-day workflow: worktrees, app slots, review, feedback rule.
 - `docs/ai-agent-plan.md` — the plan for agent tooling (skills, hooks, verification).
 
 ## Commands (from the repo root)
@@ -18,8 +19,10 @@ database or frontend. See `README.md` for setup and deploy.
 | `docker compose -f docker-compose.dev.yml up -d` | Dev PostgreSQL on `localhost:5433` |
 | `npm --prefix backend run db:push` | Apply `schema.prisma` to the database |
 
-Dev servers are defined in `.claude/launch.json` (`backend` on :3000, `frontend` on
-:5173). Start them with the preview tools, never with Bash.
+Dev servers are defined in `.claude/launch.json` and started with the preview tools, never
+with Bash. Main checkout = slot 0 (`backend` :3000, `frontend` :5173). **In a worktree, use the
+slot the user gave you** (`backend-1`/`frontend-1` = :3100/:5273, `-2` = :3200/:5373; ask if
+none was given) — each slot has its own database and session cookie (`scripts/dev.mjs`).
 
 ## Non-negotiables
 

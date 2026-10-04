@@ -3,7 +3,7 @@
 // The node_modules junctions are unlinked first so the real folders are never touched.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, unlinkSync, lstatSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, rmSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 
 const [dir, branch] = process.argv.slice(2);
@@ -25,6 +25,33 @@ for (const pkg of ['backend', 'frontend']) {
 }
 
 const root = path.resolve(dir, '..', '..', '..');
-execFileSync('git', ['worktree', 'remove', '--force', dir], { cwd: root });
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+// Any link left inside (none expected) would make a recursive delete dangerous.
+function hasLinks(d) {
+  return readdirSync(d, { withFileTypes: true }).some((e) => {
+    const p = path.join(d, e.name);
+    return lstatSync(p).isSymbolicLink() || (e.isDirectory() && hasLinks(p));
+  });
+}
+
+// On Windows a process that just exited (prisma, vitest) can hold files for a moment.
+let removed = false;
+for (let attempt = 0; attempt < 5 && !removed; attempt++) {
+  try {
+    execFileSync('git', ['worktree', 'remove', '--force', dir], { cwd: root, stdio: 'pipe' });
+    removed = true;
+  } catch {
+    sleep(1000);
+  }
+}
+if (!removed && existsSync(dir)) {
+  if (hasLinks(dir)) {
+    console.error(`${dir} still contains links; not deleting it. Inspect it by hand.`);
+    process.exit(1);
+  }
+  rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+}
+execFileSync('git', ['worktree', 'prune'], { cwd: root });
 execFileSync('git', ['branch', '-D', branch], { cwd: root, stdio: 'ignore' });
 console.log(`removed ${dir}`);

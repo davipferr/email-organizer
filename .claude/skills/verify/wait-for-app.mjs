@@ -1,8 +1,10 @@
-// Waits until the frontend (5173) serves the app and proxies a healthy backend (3000).
-// Usage: node .claude/skills/verify/wait-for-app.mjs [timeoutSeconds=90]
+// Waits until the frontend serves the app and proxies a healthy backend.
+// Usage: node .claude/skills/verify/wait-for-app.mjs [timeoutSeconds=90] [slot=0]
+// Slot n = frontend on 5173+100n (see scripts/dev.mjs).
 // Exit 0 when ready; exit 1 with the last error after the timeout.
 
 const timeoutMs = Number(process.argv[2] ?? 90) * 1000;
+const base = `http://localhost:${5173 + 100 * Number(process.argv[3] ?? 0)}`;
 const started = Date.now();
 let last = '';
 
@@ -20,7 +22,7 @@ async function ok(url) {
 let ready = false;
 while (!ready && Date.now() - started < timeoutMs) {
   // Through the Vite proxy, so this checks frontend, backend and database at once.
-  ready = (await ok('http://localhost:5173/')) && (await ok('http://localhost:5173/api/health'));
+  ready = (await ok(`${base}/`)) && (await ok(`${base}/api/health`));
   if (!ready) await new Promise((r) => setTimeout(r, 1000));
 }
 

@@ -79,6 +79,10 @@ npm --prefix backend run start:dev    # API on http://localhost:3000/api
 npm --prefix frontend run dev         # site on http://localhost:5173
 ```
 
+**Several checkouts at once** (git worktrees, e.g. parallel Claude sessions): start a slot
+with `node scripts/dev.mjs backend 1` and `node scripts/dev.mjs frontend 1` (slot N = ports
+3000/5173 + 100·N, its own database). Worktrees use the main checkout's environment file.
+
 **Without Google (fake mailbox):** set `DEV_LOGIN=true` in `.env` and click **Dev login
 (fake mailbox)** on the login page — ~200 generated emails, no Google account needed. Add
 `?reset=1` (the button does) to start from a clean state. See `docs/feature-map.md`.

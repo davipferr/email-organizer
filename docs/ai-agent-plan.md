@@ -101,7 +101,14 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
 
 ## Phase 5 — Working mode
 
-- [ ] Configurable ports / dev DB so several worktrees can run the app at once
-- [ ] Habit: plan mode for non-trivial work; `/code-review` before merging
-- [ ] Rule: a review comment given twice becomes a lint rule, hook or skill line —
+- [x] App slots (`scripts/dev.mjs`, launch configs `backend-N`/`frontend-N`): per-slot ports,
+      database (`mail_organizer_slotN`, auto-created) and session cookie; worktrees read the
+      main checkout's env file (`ENV_FILE`), never a copy. Verified two slots side by side:
+      separate accounts, mailboxes and logins
+- [x] `worktree.symlinkDirectories` links `node_modules` into Claude-created worktrees
+- [x] `/verify`, feature map, CLAUDE.md and README are slot-aware
+- [x] Habits in `docs/working-with-claude.md`: plan mode for non-trivial work, one task per
+      worktree session, `/code-review` before merging, trust-curve levels
+- [x] Rule: a review comment given twice becomes a lint rule, hook or skill line (+ eval case) —
       in that order of preference
+- [ ] Later: browser-based evals for `verify` (a slot per eval worker)

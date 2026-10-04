@@ -12,6 +12,30 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "backend-1",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.mjs", "backend", "1"],
+      "port": 3100
+    },
+    {
+      "name": "frontend-1",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.mjs", "frontend", "1"],
+      "port": 5273
+    },
+    {
+      "name": "backend-2",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.mjs", "backend", "2"],
+      "port": 3200
+    },
+    {
+      "name": "frontend-2",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.mjs", "frontend", "2"],
+      "port": 5373
     }
   ]
 }

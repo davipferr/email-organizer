@@ -9,7 +9,7 @@ import { MailProviderRegistry } from '../../mail-providers/mail-provider.registr
 import { MissingScopesError } from '../../mail-providers/provider-errors.js';
 import { MailProviderType } from '../../generated/prisma/enums.js';
 
-const STATE_COOKIE = 'oauth_state';
+const STATE_COOKIE = `oauth_state${process.env['DB_SUFFIX'] ?? ''}`;
 
 @Injectable()
 export class AuthService {
@@ -36,7 +36,7 @@ export class AuthService {
     };
   }
 
-  appUrl(path: string) {
+  private appUrl(path: string) {
     return `${this.config.get('APP_URL', { infer: true })}${path}`;
   }
 
