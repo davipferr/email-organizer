@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useSearchParams } from 'react-router'
-import { ActionIcon, AppShell, Avatar, Burger, Group, Menu, Text, TextInput } from '@mantine/core'
+import { ActionIcon, Alert, AppShell, Avatar, Burger, Button, Center, Group, Loader, Menu, Text, TextInput } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconLogout, IconMail, IconPlugConnected, IconSearch } from '@tabler/icons-react'
+import { useCurrentAccount, useLogout, useMe } from '../api/hooks.ts'
 import { SidebarNav } from '../components/SidebarNav.tsx'
 
 export function AppLayout() {
@@ -10,10 +11,22 @@ export function AppLayout() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [search, setSearch] = useState(params.get('q') ?? '')
+  const { data: me, isLoading } = useMe()
+  const account = useCurrentAccount()
+  const logout = useLogout()
 
   const submitSearch = () => {
     const q = search.trim()
     if (q) navigate(`/search?q=${encodeURIComponent(q)}`)
+  }
+
+  // A 401 from /auth/me redirects to /login (see api/client.ts).
+  if (isLoading || !me) {
+    return (
+      <Center mih="100vh">
+        <Loader />
+      </Center>
+    )
   }
 
   return (
@@ -43,12 +56,15 @@ export function AppLayout() {
           <Menu position="bottom-end">
             <Menu.Target>
               <ActionIcon variant="subtle" radius="xl" size="lg" ml="auto" aria-label="Account menu">
-                <Avatar size="sm" radius="xl" />
+                <Avatar src={me.user.avatarUrl} name={me.user.name ?? me.user.email} size="sm" radius="xl" />
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item leftSection={<IconPlugConnected size={16} />}>Reconnect Gmail</Menu.Item>
-              <Menu.Item leftSection={<IconLogout size={16} />} color="red">
+              <Menu.Label>{me.user.email}</Menu.Label>
+              <Menu.Item component="a" href="/api/auth/google" leftSection={<IconPlugConnected size={16} />}>
+                Reconnect Gmail
+              </Menu.Item>
+              <Menu.Item leftSection={<IconLogout size={16} />} color="red" onClick={() => logout.mutate()}>
                 Log out
               </Menu.Item>
             </Menu.Dropdown>
@@ -61,6 +77,16 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        {account?.needsReconnect && (
+          <Alert color="yellow" mb="md" title="Gmail access expired">
+            <Group justify="space-between">
+              <Text size="sm">Reconnect your Gmail account to keep organizing your emails.</Text>
+              <Button component="a" href="/api/auth/google" size="xs">
+                Reconnect Gmail
+              </Button>
+            </Group>
+          </Alert>
+        )}
         <Outlet />
       </AppShell.Main>
     </AppShell>

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { SessionGuard } from '../../common/auth/session.guard.js';
 import { CurrentUserId } from '../../common/auth/current-user.decorator.js';
@@ -16,8 +16,8 @@ export class AuthController {
 
   // Google redirects back here with ?code=...; creates user, account and session.
   @Get('google/callback')
-  googleCallback(@Query('code') code: string, @Query('state') state: string, @Req() req: Request, @Res() res: Response) {
-    return this.auth.handleGoogleCallback(code, state, req, res);
+  googleCallback(@Req() req: Request, @Res() res: Response) {
+    return this.auth.handleGoogleCallback(req, res);
   }
 
   @Get('me')
@@ -27,7 +27,7 @@ export class AuthController {
   }
 
   @Post('logout')
-  @UseGuards(SessionGuard)
+  @HttpCode(204)
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.auth.logout(req, res);
   }

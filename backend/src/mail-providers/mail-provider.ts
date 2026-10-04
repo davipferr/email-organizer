@@ -17,6 +17,8 @@ export interface OAuthTokens {
 export interface ProviderAuth extends OAuthTokens {
   // Called when the provider refreshes the access token, so it can be persisted.
   onTokensRefreshed?: (tokens: OAuthTokens) => Promise<void>;
+  // Called when the provider rejects the credentials (before ProviderAuthError is thrown).
+  onAuthFailed?: () => Promise<void>;
 }
 
 export interface ProviderProfile {
@@ -70,6 +72,7 @@ export interface ListMessagesQuery {
 export interface MessagePage {
   messages: MailMessageSummary[];
   nextPageToken?: string;
+  totalEstimate?: number;
 }
 
 // Which emails an action applies to.
