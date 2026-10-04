@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
 import {
   ActionIcon,
   Alert,
@@ -40,7 +39,6 @@ const SORT_OPTIONS = [
 // (and by actions taken in the app).
 export function SendersPage() {
   const navigate = useNavigate()
-  const qc = useQueryClient()
   const account = useCurrentAccount()
 
   const [groupBy, setGroupBy] = useState<SendersQuery['groupBy']>('email')
@@ -48,26 +46,27 @@ export function SendersPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch] = useDebouncedValue(search, 300)
   const [page, setPage] = useState(1)
-  useEffect(() => setPage(1), [groupBy, sort, debouncedSearch])
 
   const { data: sync } = useSyncStatus(account?.id)
   const startSync = useStartSync(account?.id)
   const running = sync?.run?.status === 'RUNNING'
   const { data, isLoading, isFetching } = useSenders(account?.id, { groupBy, sort, search: debouncedSearch, page })
 
-  // When a sync finishes, reload the senders and report failures.
-  const wasRunning = useRef(false)
-  useEffect(() => {
-    if (wasRunning.current && !running && sync?.run) {
-      void qc.invalidateQueries({ queryKey: ['senders', account?.id] })
-      if (sync.run.status === 'FAILED') notifications.show({ color: 'red', message: sync.run.error ?? 'Sync failed' })
-      else notifications.show({ message: 'Sync finished', autoClose: 2500 })
-    }
-    wasRunning.current = running
-  }, [running, sync, qc, account?.id])
-
+  // The senders list reloads by itself (useSenders keys on lastSyncedAt); this only reports the result.
   const runSync = (full: boolean) =>
-    startSync.mutate(full, { onError: (err) => notifications.show({ color: 'red', message: errorMessage(err) }) })
+    startSync.mutate(full, {
+      onSuccess: (run) =>
+        run?.status === 'FAILED'
+          ? notifications.show({ color: 'red', message: run.error ?? 'Sync failed' })
+          : notifications.show({ message: 'Sync finished', autoClose: 2500 }),
+      onError: (err) => notifications.show({ color: 'red', message: errorMessage(err) }),
+    })
+
+  // Any filter change goes back to the first page.
+  const changeFilter = <T,>(set: (value: T) => void) => (value: T) => {
+    set(value)
+    setPage(1)
+  }
 
   const neverSynced = !!sync && !sync.lastSyncedAt && !running
   const totalPages = data ? Math.max(1, Math.ceil(data.totalGroups / data.pageSize)) : 1
@@ -165,7 +164,7 @@ export function SendersPage() {
               size="xs"
               value={groupBy}
               data-testid="senders-group-by"
-              onChange={(v) => setGroupBy(v as SendersQuery['groupBy'])}
+              onChange={(v) => changeFilter(setGroupBy)(v as SendersQuery['groupBy'])}
               data={[
                 { value: 'email', label: 'By email' },
                 { value: 'domain', label: 'By domain' },
@@ -176,7 +175,7 @@ export function SendersPage() {
               w={140}
               data={SORT_OPTIONS}
               value={sort}
-              onChange={(v) => v && setSort(v as SendersQuery['sort'])}
+              onChange={(v) => v && changeFilter(setSort)(v as SendersQuery['sort'])}
               allowDeselect={false}
             />
             <TextInput
@@ -186,7 +185,7 @@ export function SendersPage() {
               data-testid="senders-search"
               leftSection={<IconSearch size={14} />}
               value={search}
-              onChange={(e) => setSearch(e.currentTarget.value)}
+              onChange={(e) => changeFilter(setSearch)(e.currentTarget.value)}
             />
           </Group>
 

@@ -3,8 +3,9 @@
   "private": true,
   "scripts": {
     "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
-    "lint": "npm --prefix frontend run lint",
-    "test": "npm --prefix backend test && npm --prefix frontend test",
-    "check": "npm run typecheck && npm run lint && npm test"
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix frontend test && node --test \".claude/hooks/*.test.mjs\"",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "hooks:install": "git config core.hooksPath .githooks"
   }
 }

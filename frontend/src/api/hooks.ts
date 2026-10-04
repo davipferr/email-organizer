@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, apiPatch, apiPost } from './client.ts'
-import type { MailLabel, MailMessageFull, Me, MessagePage, SendersPage, SyncStatus } from './types.ts'
+import type { MailLabel, MailMessageFull, Me, MessagePage, SendersPage, SyncRun, SyncStatus } from './types.ts'
 
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => apiGet<Me>('/auth/me'), staleTime: Infinity })
@@ -84,21 +84,33 @@ export function useMessage(accountId: string | undefined, messageId: string | nu
   })
 }
 
+const syncStatusQuery = (accountId: string | undefined) => ({
+  queryKey: ['sync', accountId],
+  queryFn: () => apiGet<SyncStatus>(`/accounts/${accountId}/sync`),
+})
+
 // Polls every 1.5 s while a sync is running.
 export function useSyncStatus(accountId: string | undefined) {
   return useQuery({
-    queryKey: ['sync', accountId],
-    queryFn: () => apiGet<SyncStatus>(`/accounts/${accountId}/sync`),
+    ...syncStatusQuery(accountId),
     enabled: !!accountId,
     refetchInterval: (query) => (query.state.data?.run?.status === 'RUNNING' ? 1500 : false),
   })
 }
 
+// Starts a sync and resolves with the finished run (DONE or FAILED), so callers can react
+// to the end of the sync in the same event that started it.
 export function useStartSync(accountId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (full: boolean) => apiPost(`/accounts/${accountId}/sync`, full ? { force: 'full' } : {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sync', accountId] }),
+    mutationFn: async (full: boolean): Promise<SyncRun | null> => {
+      await apiPost(`/accounts/${accountId}/sync`, full ? { force: 'full' } : {})
+      for (;;) {
+        const status = await qc.fetchQuery({ ...syncStatusQuery(accountId), staleTime: 0 })
+        if (status.run?.status !== 'RUNNING') return status.run
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+      }
+    },
   })
 }
 
@@ -110,10 +122,12 @@ export interface SendersQuery {
 }
 
 export function useSenders(accountId: string | undefined, query: SendersQuery) {
+  // Part of the key, so the list reloads by itself whenever a sync finishes.
+  const lastSyncedAt = useSyncStatus(accountId).data?.lastSyncedAt
   const params = new URLSearchParams({ groupBy: query.groupBy, sort: query.sort, page: String(query.page) })
   if (query.search.trim()) params.set('search', query.search.trim())
   return useQuery({
-    queryKey: ['senders', accountId, query],
+    queryKey: ['senders', accountId, query, lastSyncedAt],
     queryFn: () => apiGet<SendersPage>(`/accounts/${accountId}/senders?${params}`),
     enabled: !!accountId,
     placeholderData: keepPreviousData,

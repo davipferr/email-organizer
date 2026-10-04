@@ -25,7 +25,9 @@ Never test with Google login or a real mailbox — only the fake mailbox.
 3. Wait until it's ready — don't sleep blindly:
    `node .claude/skills/verify/wait-for-app.mjs`
    If it times out: PostgreSQL may be down (`docker compose -f docker-compose.dev.yml up -d`),
-   or the backend failed to compile — read `preview_logs` for the backend.
+   or the backend failed to compile — read `preview_logs` for the backend. If the logs say the
+   server **exited** with a `taskkill ... /T /F` error, the Nest watcher crashed on Windows
+   (rapid file changes); just `preview_start` the backend again.
 4. After you edit **backend** code, Nest restarts on its own: run `wait-for-app.mjs` again, and
    remember the restart **resets the fake mailbox** (log in with reset again).
 

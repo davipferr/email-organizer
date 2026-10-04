@@ -1,0 +1,9 @@
+#!/bin/sh
+# Blocks the commit if typecheck, lint or tests fail: the local stand-in for CI.
+# Enabled per clone with: npm run hooks:install
+echo "pre-commit: npm run check"
+npm run check --silent || {
+  echo ""
+  echo "pre-commit: npm run check failed, commit aborted."
+  exit 1
+}

@@ -3,10 +3,14 @@ import type { Request, Response } from 'express';
 import { SessionGuard } from '../../common/auth/session.guard.js';
 import { CurrentUserId } from '../../common/auth/current-user.decorator.js';
 import { AuthService } from './auth.service.js';
+import { DevLoginService } from './dev-login.service.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly devLoginService: DevLoginService,
+  ) {}
 
   // Redirects to Google's consent screen.
   @Get('google')
@@ -24,7 +28,7 @@ export class AuthController {
   // Open /api/auth/dev-login?reset=1 to start from a clean, known state.
   @Get('dev-login')
   devLogin(@Query('reset') reset: string | undefined, @Res() res: Response) {
-    return this.auth.devLogin(res, reset === '1' || reset === 'true');
+    return this.devLoginService.login(res, reset === '1' || reset === 'true');
   }
 
   @Get('me')

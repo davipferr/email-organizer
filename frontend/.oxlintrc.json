@@ -1,8 +1,90 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc"
+  ],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react",
+            "importNames": [
+              "useEffect",
+              "useLayoutEffect"
+            ],
+            "message": "Effects are banned in this project. Derive values during render, handle changes in the event that causes them, use React Query for server state or a Mantine hook (useDebouncedValue, useInterval...). See frontend/CLAUDE.md."
+          },
+          {
+            "name": "@mantine/hooks",
+            "importNames": [
+              "useDidUpdate",
+              "useShallowEffect",
+              "useIsomorphicEffect"
+            ],
+            "message": "These are effects in disguise and are banned like useEffect. See frontend/CLAUDE.md."
+          }
+        ]
+      }
+    ],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "React",
+        "property": "useEffect",
+        "message": "Effects are banned in this project. See frontend/CLAUDE.md."
+      },
+      {
+        "object": "React",
+        "property": "useLayoutEffect",
+        "message": "Effects are banned in this project. See frontend/CLAUDE.md."
+      },
+      {
+        "object": "window",
+        "property": "fetch",
+        "message": "Call the backend through src/api/client.ts and a hook in src/api/hooks.ts."
+      },
+      {
+        "object": "globalThis",
+        "property": "fetch",
+        "message": "Call the backend through src/api/client.ts and a hook in src/api/hooks.ts."
+      }
+    ],
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "fetch",
+        "message": "Call the backend through src/api/client.ts (apiGet/apiPost...) and a hook in src/api/hooks.ts."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/api/client.ts"
+      ],
+      "rules": {
+        "no-restricted-globals": "off",
+        "no-restricted-properties": "off"
+      }
+    },
+    {
+      "files": [
+        "src/features/**/*.tsx"
+      ],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    }
+  ]
 }

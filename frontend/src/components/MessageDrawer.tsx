@@ -39,11 +39,10 @@ function emailDocument(html: string | undefined, text: string | undefined): stri
 export function MessageDrawer({ accountId, messageId, labelsById, userLabels, viewLabelId, actions, onClose }: Props) {
   const { data: message, isLoading, isError } = useMessage(accountId, messageId)
   const hasMessage = !!message
+  const html = message?.html
+  const text = message?.text
   // Keyed on the content so re-fetches (e.g. after tagging) don't reload the iframe.
-  const srcDoc = useMemo(
-    () => (hasMessage ? emailDocument(message.html, message.text) : ''),
-    [hasMessage, message?.html, message?.text],
-  )
+  const srcDoc = useMemo(() => (hasMessage ? emailDocument(html, text) : ''), [hasMessage, html, text])
   const messageTags = (message?.labelIds ?? [])
     .map((id) => labelsById.get(id))
     .filter((l): l is MailLabel => l?.type === 'USER')

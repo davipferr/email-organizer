@@ -22,9 +22,12 @@ src/
 - **Data:** read with a hook from `api/hooks.ts`; add new hooks there. Query keys start with
   the resource and `accountId` (`['messages', accountId, ...]`); invalidate by that prefix
   after a mutation.
-- **No `useEffect`.** Derive values during render, handle changes in the event that causes
-  them, use React Query for server state and Mantine hooks (`useDebouncedValue`, etc.) for
-  the rest. (A lint rule will enforce this — see `docs/ai-agent-plan.md`, Phase 3.)
+- **No effects** (`useEffect`, `useLayoutEffect`, Mantine's `useDidUpdate`/`useShallowEffect`
+  — lint errors). Derive values during render, do the work in the event handler that causes
+  the change (e.g. `changeFilter` in `SendersPage.tsx` resets the page), use React Query for
+  server state — including "do X when it finishes" (see `useStartSync`, which resolves when the
+  sync ends) and query keys that change with their inputs (`useSenders` keys on `lastSyncedAt`).
+- **No `fetch`** outside `api/client.ts` (lint error).
 - **UI:** Mantine components and theme tokens; no other UI or CSS libraries. Icons from
   `@tabler/icons-react`.
 - **Feedback:** errors via `notifications.show` with `errorMessage(err)`. Email actions go

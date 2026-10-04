@@ -64,14 +64,22 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
 
 ## Phase 3 — Hard guardrails
 
-- [ ] `.claude/settings.json` permissions: deny `.env` access, `db push --accept-data-loss`,
-      `docker compose down -v`, `git push --force`; allow common safe commands
-- [ ] Claude hooks (Node scripts, Windows-safe): `PostToolUse` fast typecheck/lint of the
-      touched package; `Stop` runs `npm run check`; `PreToolUse` blocks destructive commands
-- [ ] Lint: ban `useEffect` (refactor the 2 uses in `SendersPage.tsx`); `fetch` only in
-      `frontend/src/api/`
-- [ ] Backend boundary rule: `modules/**` may not import `mail-providers/gmail/**`
-- [ ] Git pre-commit hook running `npm run check`
+- [x] `.claude/settings.json` permissions: deny Read/Edit of `.env`; allow the common safe
+      commands (check, typecheck, lint, tests, git status/diff/log)
+- [x] Claude hooks (Node scripts in `.claude/hooks/`, Windows-safe):
+      - `PreToolUse` guard: deny `.env`, `db push --accept-data-loss/--force-reset`,
+        `prisma migrate`, Docker volume deletion, force-push, `--no-verify`; ask before
+        `git reset --hard`/`clean -f`/`checkout --`. 23 regression tests in `npm test`.
+      - `PostToolUse`: lint the edited file + typecheck its package (~3–6 s), errors fed back
+      - `Stop`: `npm run check` when code changed (cached per working-tree fingerprint);
+        blocks once, then tells the user instead of looping
+- [x] Lint: `--deny-warnings` in both packages; frontend bans `useEffect`/`useLayoutEffect`
+      (+ `React.` forms and Mantine's effect hooks) and `fetch` outside `api/client.ts`;
+      the 2 effects in `SendersPage.tsx` refactored to events/query keys; last warning fixed
+- [x] Backend lint (oxlint added) with the boundary rule: business code can't import
+      `googleapis` or a specific provider. Dev login moved to `dev-login.service.ts`, the one
+      documented exception
+- [x] Git pre-commit hook (`.githooks/pre-commit`, `npm run hooks:install`)
 
 ## Phase 4 — Evals
 

@@ -32,7 +32,9 @@ controller  →  service  →  AccountsService.getProviderContext()  →  MailPr
 - After a provider action, update the synced rows (`MessageStoreService`) so the Senders
   view stays correct without a new sync (see `messages.service.ts`).
 - **Provider code** (`mail-providers/<provider>/`) is the only place that may import
-  `googleapis` or provider SDKs. It throws `ProviderAuthError` / `ProviderRequestError` /
+  `googleapis` or provider SDKs — enforced by lint for `modules/`, `common/`, `jobs/`, `config/`
+  and `prisma/`. The single exception is `modules/auth/dev-login.service.ts` (it creates the
+  fake account); don't add others. It throws `ProviderAuthError` / `ProviderRequestError` /
   `ProviderNotFoundError`; `ProviderExceptionFilter` maps them to HTTP. Don't catch them in services.
 - Bulk work over many emails (by sender / search) is a pg-boss job that returns a row to poll
   (`BulkAction`, `SyncRun`). Jobs never retry automatically.
@@ -47,7 +49,8 @@ controller  →  service  →  AccountsService.getProviderContext()  →  MailPr
 ## Fake provider (dev only)
 
 `mail-providers/fake/` is an in-memory `MailProvider` with deterministic fixtures, enabled by
-`DEV_LOGIN=true` (startup fails if set in production) and reached via `GET /api/auth/dev-login?reset=1`.
+`DEV_LOGIN=true` (startup fails if set in production) and reached via `GET /api/auth/dev-login?reset=1`
+(`modules/auth/dev-login.service.ts`).
 When you add a method to `MailProvider`, implement it in **both** providers and add a test in
 `fake.provider.spec.ts`. Keep the fake's behavior faithful to Gmail's (e.g. Trash/Spam excluded
 from searches) — it's what every agent verification runs against.

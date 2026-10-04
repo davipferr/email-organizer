@@ -4,3 +4,5 @@ dist/
 backend/src/generated/
 *.tsbuildinfo
 .DS_Store
+.claude/.cache/
+.claude/settings.local.json

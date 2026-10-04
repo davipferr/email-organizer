@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "oxc",
+    "import"
+  ],
+  "ignorePatterns": [
+    "src/generated/**",
+    "dist/**"
+  ],
+  "rules": {},
+  "overrides": [
+    {
+      "files": [
+        "src/modules/**",
+        "src/common/**",
+        "src/jobs/**",
+        "src/config/**",
+        "src/prisma/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "googleapis",
+                "message": "Only mail-providers/gmail/ may use googleapis. Go through MailProvider (AccountsService.getProviderContext). See backend/CLAUDE.md."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "**/mail-providers/gmail/*",
+                  "**/mail-providers/fake/fake.provider*",
+                  "**/mail-providers/fake/fake-mailbox*"
+                ],
+                "message": "Business code must not import a specific provider. Use MailProviderRegistry / AccountsService.getProviderContext(). See backend/CLAUDE.md."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/modules/auth/dev-login.service.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
+}

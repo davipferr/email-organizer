@@ -69,6 +69,7 @@ cp .env.example .env    # fill GOOGLE_* and TOKEN_ENCRYPTION_KEY (command in the
 docker compose -f docker-compose.dev.yml up -d
 cd backend && npm install && npm run db:push && npm run prisma:generate
 cd ../frontend && npm install
+cd .. && npm run hooks:install   # pre-commit: typecheck + lint + tests
 ```
 
 Then, in two terminals from the project root:

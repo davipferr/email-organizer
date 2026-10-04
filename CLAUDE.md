@@ -33,6 +33,19 @@ Dev servers are defined in `.claude/launch.json` (`backend` on :3000, `frontend`
 - **Never act on the user's real mailbox** to test something. Use the fake mailbox:
   `DEV_LOGIN=true` + http://localhost:5173/api/auth/dev-login?reset=1 (see `docs/feature-map.md`).
 
+## Guardrails (enforced — don't work around them)
+
+| Where | What it does |
+|---|---|
+| `.claude/hooks/guard-commands.mjs` (before Bash/PowerShell) | Blocks reading/editing `.env`, `db push --accept-data-loss`, `prisma migrate`, deleting Docker volumes, force-push, `--no-verify`; asks before `git reset --hard` / `clean -f` |
+| `.claude/hooks/check-edited.mjs` (after Edit/Write) | Lints the edited file and typechecks its package; problems come back to you immediately |
+| `.claude/hooks/stop-check.mjs` (before you finish) | Runs `npm run check` if code changed; you can't finish while it fails |
+| `.githooks/pre-commit` | `npm run check` before every commit (`npm run hooks:install` once per clone) |
+| Lint (`oxlint --deny-warnings`) | Warnings fail. Frontend: no effects, no `fetch` outside `api/client.ts`. Backend: business code can't import a specific provider or `googleapis` |
+
+If a guardrail blocks something you believe is right, stop and explain it to the user —
+never bypass it (no `--no-verify`, no lint-disable comments, no moving code to dodge a rule).
+
 ## Skills (`.claude/skills/`)
 
 | Skill | Use it when |
