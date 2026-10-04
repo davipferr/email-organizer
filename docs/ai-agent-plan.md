@@ -83,10 +83,21 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
 
 ## Phase 4 — Evals
 
-- [ ] `evals/<skill>/cases/*.md` — tasks with known answers (planted bugs, "where is X")
-- [ ] Subagents: `skill-runner` (isolated worktree) and `judge` (different model, 0–10 rubric)
-- [ ] `/run-evals` skill writing `evals/results.md`
-- [ ] Hill-climb skills with `/loop /run-evals`
+- [x] `evals/cases/<id>/case.md` (+ `setup.patch` planted bug): 5 cases — 2 investigate,
+      2 repro-bug, 1 add-feature. Planted bugs pass the existing tests, like real escaped bugs
+- [x] Isolation + disguise: `evals/scripts/prepare.mjs` makes a git worktree under
+      `.claude/worktrees/wt-<random>`, hides `evals/` (sparse checkout), commits the planted bug
+      with an ordinary message; `collect.mjs` (diff + `npm run check`), `cleanup.mjs`
+- [x] Agents: `worker` (session model, doesn't know it's an eval) and `eval-judge`
+      (Sonnet, read-only, strict JSON score against the rubric)
+- [x] `/run-evals` skill writing `evals/results.md`, with hill-climbing rules
+      (`/loop /run-evals <skill>`; never edit a rubric to raise a score)
+- [x] First baseline run recorded in `evals/results.md`
+- [ ] Browser-based evals for `verify` — needs per-worktree ports (Phase 5)
+- [ ] Open: add one line to `/repro-bug` about repairing data a bug already stored
+      (the only point lost in the baseline) and re-run its cases
+- [ ] Open: harder cases (misleading symptom, frontend+backend bug, misleading recent
+      commit) — the baseline is near the ceiling
 
 ## Phase 5 — Working mode
 

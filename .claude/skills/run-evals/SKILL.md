@@ -45,6 +45,10 @@ When a worker finishes:
 2. Spawn the **`eval-judge`** agent (it runs on a different model than the worker) with:
    the checkout path, the case's Task, Expected and Rubric sections, the worker's final report
    (verbatim), and the collect JSON. It answers with JSON `{score, criteria, summary}`.
+   **The case score is the sum of `criteria[].points`** — judges sometimes misadd their own
+   total; if it disagrees with `score`, use the sum and note it in the details.
+   Save the collect JSON to a file in your scratchpad and give the judge the path instead of
+   pasting a large diff.
 3. `node evals/scripts/cleanup.mjs <dir> <branch>` — always, even if the worker or judge failed.
 
 ## 4. Record

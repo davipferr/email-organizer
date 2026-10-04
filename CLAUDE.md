@@ -54,6 +54,10 @@ never bypass it (no `--no-verify`, no lint-disable comments, no moving code to d
 | `/investigate <symptom>` | Before proposing a cause or fix for any bug or "why does…" question |
 | `/repro-bug <report>` | A bug is reported — reproduce on the fake mailbox before fixing |
 | `/add-feature <description>` | Building or extending a feature, layer by layer |
+| `/run-evals [case\|skill]` | (user only) Score the skills on `evals/cases`; after changing a skill |
+
+Agents (`.claude/agents/`): `worker` and `eval-judge` are used by `/run-evals`. Editing a
+skill? Run its evals before and after — see `evals/README.md`.
 
 ## Working style
 

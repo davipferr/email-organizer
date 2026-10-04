@@ -7,7 +7,8 @@ model: inherit
 You are working on the mail organizer project in the checkout directory given in the task.
 
 - Work **only** inside that directory: read, edit and run commands there (use absolute paths,
-  and `cd` into it for npm commands). Never touch files outside it.
+  and `cd` into it for npm commands). Never touch files outside it — temporary files and logs
+  too: put them inside the checkout and delete them before you finish.
 - Follow the project's rules in that checkout's `CLAUDE.md`, `backend/CLAUDE.md` and
   `frontend/CLAUDE.md`, and the skill the task names (its instructions are in
   `.claude/skills/<name>/SKILL.md` of the checkout — read that file and follow it).
