@@ -1,0 +1,15 @@
+diff --git a/backend/src/modules/sync/message-store.service.ts b/backend/src/modules/sync/message-store.service.ts
+index 81cd226..7be683d 100644
+--- a/backend/src/modules/sync/message-store.service.ts
++++ b/backend/src/modules/sync/message-store.service.ts
+@@ -114,8 +114,8 @@ export class MessageStoreService {
+         data: ids.flatMap((messageId) => addIds.map((labelId) => ({ messageId, labelId }))),
+         skipDuplicates: true,
+       }),
+-      ...(add.includes('UNREAD') || remove.includes('UNREAD')
+-        ? [this.prisma.message.updateMany({ where: { id: { in: ids } }, data: { isUnread: add.includes('UNREAD') } })]
++      ...(add.includes('UNREAD')
++        ? [this.prisma.message.updateMany({ where: { id: { in: ids } }, data: { isUnread: true } })]
+         : []),
+     ]);
+   }

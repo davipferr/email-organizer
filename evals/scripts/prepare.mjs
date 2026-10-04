@@ -8,7 +8,7 @@
 //   so `git status`/`git diff` look clean, like a bug that shipped earlier
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, readFileSync, symlinkSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, readdirSync, symlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,15 +36,22 @@ for (const pkg of ['backend', 'frontend']) {
 }
 cpSync(path.join(root, 'backend', 'src', 'generated'), path.join(dir, 'backend', 'src', 'generated'), { recursive: true });
 
-const patch = path.join(caseDir, 'setup.patch');
-if (existsSync(patch)) {
+// setup.patch, setup2.patch, ... each becomes its own commit, in order (so a case can put a
+// harmless "red herring" commit on top of the one that introduced the bug). Messages come
+// from setup_commit:, setup2_commit:, ... in the case front matter.
+const caseText = readFileSync(path.join(caseDir, 'case.md'), 'utf8');
+const patches = readdirSync(caseDir)
+  .map((f) => f.match(/^setup(\d*)\.patch$/))
+  .filter(Boolean)
+  .sort((a, b) => Number(a[1] || 1) - Number(b[1] || 1));
+for (const [file, n] of patches) {
   try {
-    git(['apply', '--whitespace=nowarn', patch], dir);
+    git(['apply', '--whitespace=nowarn', path.join(caseDir, file)], dir);
   } catch (err) {
-    console.error(`setup.patch for ${caseId} no longer applies to HEAD — update the case.\n${err.stderr ?? err.message}`);
+    console.error(`${file} for ${caseId} no longer applies — update the case.\n${err.stderr ?? err.message}`);
     process.exit(1);
   }
-  const message = readFileSync(path.join(caseDir, 'case.md'), 'utf8').match(/^setup_commit:\s*(.+)$/m)?.[1] ?? 'Tidy up';
+  const message = caseText.match(new RegExp(`^setup${n}_commit:\\s*(.+)$`, 'm'))?.[1] ?? 'Tidy up';
   git(['-c', 'core.hooksPath=/dev/null', 'commit', '-qam', message], dir);
 }
 

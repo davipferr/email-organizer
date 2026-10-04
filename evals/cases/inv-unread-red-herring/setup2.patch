@@ -1,0 +1,13 @@
+diff --git a/backend/src/modules/senders/senders.service.ts b/backend/src/modules/senders/senders.service.ts
+index 813c9a9..a6846be 100644
+--- a/backend/src/modules/senders/senders.service.ts
++++ b/backend/src/modules/senders/senders.service.ts
+@@ -57,7 +57,7 @@ export class SendersService {
+                max(m."fromName") AS name,
+                count(DISTINCT m."fromEmail")::int AS senders,
+                count(*)::int AS total,
+-               count(*) FILTER (WHERE m."isUnread")::int AS unread,
++               sum(CASE WHEN m."isUnread" THEN 1 ELSE 0 END)::int AS unread,
+                max(m.date) AS latest,
+                sum(m."sizeBytes")::bigint AS "sizeBytes"
+         FROM messages m

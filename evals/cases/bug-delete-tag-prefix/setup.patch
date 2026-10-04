@@ -1,0 +1,13 @@
+diff --git a/backend/src/modules/labels/labels.service.ts b/backend/src/modules/labels/labels.service.ts
+index b5a05af..3d72378 100644
+--- a/backend/src/modules/labels/labels.service.ts
++++ b/backend/src/modules/labels/labels.service.ts
+@@ -50,7 +50,7 @@ export class LabelsService {
+     const label = this.userLabel(labels, labelId, 'deleted');
+ 
+     const toDelete = [label];
+-    if (withChildren) toDelete.push(...labels.filter((l) => l.name.startsWith(`${label.name}/`)));
++    if (withChildren) toDelete.push(...labels.filter((l) => l !== label && l.name.startsWith(label.name)));
+     for (const l of toDelete) await provider.deleteLabel(auth, l.providerLabelId);
+     await this.refreshStored(accountId, provider, auth);
+     return { deleted: toDelete.length };

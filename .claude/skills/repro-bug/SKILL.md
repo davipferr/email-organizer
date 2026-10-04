@@ -56,3 +56,6 @@ If the same bug can happen in the other provider, fix both.
 ## Report
 
 Steps to reproduce · root cause (`file:line`) · fix · test added · verification result.
+
+If the bug already stored wrong data (synced rows, the database), say plainly what repairs it
+(e.g. a full Sync), after checking in the code that it actually does.
