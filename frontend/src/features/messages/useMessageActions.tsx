@@ -49,6 +49,7 @@ export function useMessageActions(accountId: string | undefined) {
             <Button
               size="compact-sm"
               variant="subtle"
+              data-testid="undo"
               onClick={async () => {
                 notifications.hide(id)
                 try {

@@ -20,7 +20,7 @@ export function TagsPage() {
           <Title order={3}>Manage tags</Title>
           {isFetching && !isLoading && <Loader size="xs" />}
         </Group>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => openTagForm()}>
+        <Button leftSection={<IconPlus size={16} />} onClick={() => openTagForm()} data-testid="tags-new">
           New tag
         </Button>
       </Group>
@@ -56,7 +56,7 @@ export function TagsPage() {
               {tags.map((tag) => {
                 const depth = tag.name.split('/').length - 1
                 return (
-                  <Table.Tr key={tag.providerLabelId}>
+                  <Table.Tr key={tag.providerLabelId} data-testid="tag-row" data-label-id={tag.providerLabelId}>
                     <Table.Td>
                       <Group gap={8} pl={depth * 20} wrap="nowrap">
                         <Box
@@ -84,7 +84,7 @@ export function TagsPage() {
                     <Table.Td>
                       <Group gap={4} justify="flex-end" wrap="nowrap">
                         <Tooltip label="Edit">
-                          <ActionIcon variant="subtle" aria-label={`Edit ${tag.name}`} onClick={() => openTagForm({ tag })}>
+                          <ActionIcon variant="subtle" aria-label={`Edit ${tag.name}`} data-testid="tag-edit" onClick={() => openTagForm({ tag })}>
                             <IconPencil size={16} />
                           </ActionIcon>
                         </Tooltip>
@@ -93,6 +93,7 @@ export function TagsPage() {
                             variant="subtle"
                             color="red"
                             aria-label={`Delete ${tag.name}`}
+                            data-testid="tag-delete"
                             onClick={() => openDeleteTag(tag, tags)}
                           >
                             <IconTrash size={16} />

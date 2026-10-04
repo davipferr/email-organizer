@@ -11,7 +11,7 @@ src/
   common/          SessionGuard, @CurrentUserId, ZodValidationPipe, token cipher, provider error filter
   prisma/          PrismaService
   jobs/            pg-boss queues (QUEUES) — long work runs here, not in requests
-  mail-providers/  MailProvider interface, registry, provider errors, gmail/ implementation
+  mail-providers/  MailProvider interface, registry, provider errors, gmail/ and fake/ implementations
   modules/<name>/  one folder per feature: <name>.module/controller/service(.schemas).ts
   generated/       Prisma client (generated, gitignored — run `npm run prisma:generate`)
 ```
@@ -43,7 +43,10 @@ controller  →  service  →  AccountsService.getProviderContext()  →  MailPr
 - Store email **metadata only**; bodies are fetched live from the provider.
 - Provider tokens are always encrypted with `TokenCipherService`.
 
-## Known debt
+## Fake provider (dev only)
 
-- `modules/auth/auth.service.ts` imports `GmailProvider` directly; it should go through the
-  registry (planned in `docs/ai-agent-plan.md`, Phase 1). Don't copy this pattern.
+`mail-providers/fake/` is an in-memory `MailProvider` with deterministic fixtures, enabled by
+`DEV_LOGIN=true` (startup fails if set in production) and reached via `GET /api/auth/dev-login?reset=1`.
+When you add a method to `MailProvider`, implement it in **both** providers and add a test in
+`fake.provider.spec.ts`. Keep the fake's behavior faithful to Gmail's (e.g. Trash/Spam excluded
+from searches) — it's what every agent verification runs against.

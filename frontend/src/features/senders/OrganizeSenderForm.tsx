@@ -112,14 +112,16 @@ function OrganizeSenderForm({ group, initialTagId }: { group: SenderGroup; initi
         </Text>
       )}
       <Group justify="space-between" mt="sm">
-        <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={trashAll}>
+        <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={trashAll} data-testid="organize-trash-all">
           Trash all
         </Button>
         <Group gap="xs">
           <Button variant="default" onClick={() => modals.close(MODAL_ID)}>
             Cancel
           </Button>
-          <Button onClick={apply}>Apply</Button>
+          <Button onClick={apply} data-testid="organize-apply">
+            Apply
+          </Button>
         </Group>
       </Group>
     </Stack>

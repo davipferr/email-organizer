@@ -78,6 +78,10 @@ npm --prefix backend run start:dev    # API on http://localhost:3000/api
 npm --prefix frontend run dev         # site on http://localhost:5173
 ```
 
+**Without Google (fake mailbox):** set `DEV_LOGIN=true` in `.env` and click **Dev login
+(fake mailbox)** on the login page — ~200 generated emails, no Google account needed. Add
+`?reset=1` (the button does) to start from a clean state. See `docs/feature-map.md`.
+
 **First use:** open http://localhost:5173 → **Continue with Google** → on the
 "unverified app" warning choose **Advanced → Go to app** → tick **both** Gmail
 permissions. Then open **Senders → Sync** to copy your email metadata (only needed

@@ -6,6 +6,7 @@ database or frontend. See `README.md` for setup and deploy.
 
 - `backend/` — NestJS + Prisma (PostgreSQL) + pg-boss. Rules in `backend/CLAUDE.md`.
 - `frontend/` — React + Vite + Mantine + TanStack Query. Rules in `frontend/CLAUDE.md`.
+- `docs/feature-map.md` — how to reach and check every feature in the browser.
 - `docs/ai-agent-plan.md` — the plan for agent tooling (skills, hooks, verification).
 
 ## Commands (from the repo root)
@@ -29,7 +30,8 @@ Dev servers are defined in `.claude/launch.json` (`backend` on :3000, `frontend`
 - **Provider-agnostic.** Business code talks to `MailProvider` via `MailProviderRegistry`,
   never to Gmail/`googleapis` directly.
 - **Never read or edit `.env`.** Use `.env.example` to learn variable names.
-- **Never act on the user's real mailbox** to test something.
+- **Never act on the user's real mailbox** to test something. Use the fake mailbox:
+  `DEV_LOGIN=true` + http://localhost:5173/api/auth/dev-login?reset=1 (see `docs/feature-map.md`).
 
 ## Working style
 
@@ -43,6 +45,7 @@ Dev servers are defined in `.claude/launch.json` (`backend` on :3000, `frontend`
 ## Definition of done
 
 1. `npm run check` passes.
-2. For UI or API changes: run the app and confirm the change works in the browser pane.
-   (Login currently requires real Google OAuth — until the fake provider / dev-login
-   from Phase 1 exists, say clearly that the browser check was not possible.)
+2. For UI or API changes: start the app, log in with the dev login (reset), follow
+   `docs/feature-map.md` for the changed area, check the console and backend logs for errors,
+   and take a screenshot as proof. If you couldn't, say so — never claim it works untested.
+3. New UI controls get a `data-testid`; update `docs/feature-map.md` when a feature changes.

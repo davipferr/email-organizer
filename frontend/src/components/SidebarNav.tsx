@@ -52,6 +52,7 @@ function TagLinks({ nodes, pathname }: { nodes: TagNode[]; pathname: string }): 
         component={RouterNavLink}
         to={to}
         label={node.name}
+        data-testid={`nav-tag-${node.label?.providerLabelId}`}
         leftSection={<Dot color={node.label?.colorBg} />}
         active={pathname === to}
         defaultOpened
@@ -81,6 +82,7 @@ export function SidebarNav() {
           component={RouterNavLink}
           to={to}
           label={label}
+          data-testid={`nav-${label.toLowerCase()}`}
           leftSection={<Icon size={18} />}
           active={pathname === to}
         />
@@ -90,6 +92,7 @@ export function SidebarNav() {
         component={RouterNavLink}
         to="/senders"
         label="Senders"
+        data-testid="nav-senders"
         leftSection={<IconUsers size={18} />}
         active={pathname === '/senders'}
         mt="xs"
@@ -98,6 +101,7 @@ export function SidebarNav() {
         component={RouterNavLink}
         to="/tags"
         label="Manage tags"
+        data-testid="nav-tags"
         leftSection={<IconTags size={18} />}
         active={pathname === '/tags'}
       />
@@ -106,7 +110,7 @@ export function SidebarNav() {
         <Text size="xs" c="dimmed">
           Tags
         </Text>
-        <ActionIcon variant="subtle" size="sm" aria-label="New tag" onClick={() => openTagForm()}>
+        <ActionIcon variant="subtle" size="sm" aria-label="New tag" data-testid="nav-new-tag" onClick={() => openTagForm()}>
           <IconPlus size={14} />
         </ActionIcon>
       </Group>

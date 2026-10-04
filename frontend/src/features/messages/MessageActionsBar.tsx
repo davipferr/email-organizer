@@ -41,6 +41,7 @@ export function MessageActionsBar({ messages, viewLabelId, userLabels, actions, 
       <Button
         variant="default"
         size="xs"
+        data-testid="action-restore"
         leftSection={<IconRestore size={14} />}
         loading={actions.busy}
         onClick={async () => done(await actions.restore(ids))}
@@ -58,7 +59,7 @@ export function MessageActionsBar({ messages, viewLabelId, userLabels, actions, 
         onPick={(label, state) => actions.setTag(ids, label, state !== 'checked')}
         onCreate={() => openTagForm({ onSaved: (tag) => actions.setTag(ids, tag, true) })}
         target={
-          <Button variant="default" size="xs" leftSection={<IconTag size={14} />}>
+          <Button variant="default" size="xs" data-testid="action-tag" leftSection={<IconTag size={14} />}>
             Tag
           </Button>
         }
@@ -67,7 +68,7 @@ export function MessageActionsBar({ messages, viewLabelId, userLabels, actions, 
         labels={moveTargets}
         onPick={async (label) => done(await actions.move(ids, label, from))}
         target={
-          <Button variant="default" size="xs" leftSection={<IconFolderShare size={14} />}>
+          <Button variant="default" size="xs" data-testid="action-move" leftSection={<IconFolderShare size={14} />}>
             Move to
           </Button>
         }
@@ -76,6 +77,7 @@ export function MessageActionsBar({ messages, viewLabelId, userLabels, actions, 
         <Button
           variant="default"
           size="xs"
+          data-testid="action-archive"
           leftSection={<IconArchive size={14} />}
           onClick={async () => done(await actions.archive(ids))}
         >
@@ -85,6 +87,7 @@ export function MessageActionsBar({ messages, viewLabelId, userLabels, actions, 
       <Button
         variant="default"
         size="xs"
+        data-testid="action-mark-read"
         leftSection={anyUnread ? <IconMailOpened size={14} /> : <IconMail size={14} />}
         onClick={() => actions.markRead(ids, anyUnread)}
       >
@@ -95,6 +98,7 @@ export function MessageActionsBar({ messages, viewLabelId, userLabels, actions, 
         size="xs"
         color="red"
         c="red"
+        data-testid="action-trash"
         leftSection={<IconTrash size={14} />}
         onClick={async () => done(await actions.trash(ids))}
       >

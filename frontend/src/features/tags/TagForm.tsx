@@ -64,9 +64,11 @@ function TagForm({ tag, onSaved }: Props) {
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         error={error}
         data-autofocus
+        data-testid="tag-form-name"
       />
       <Select
         label="Nest under"
+        data-testid="tag-form-parent"
         placeholder="No parent"
         data={parentOptions}
         value={parent}
@@ -113,7 +115,7 @@ function TagForm({ tag, onSaved }: Props) {
         <Button variant="default" onClick={() => modals.close(MODAL_ID)}>
           Cancel
         </Button>
-        <Button onClick={submit} loading={save.isPending}>
+        <Button onClick={submit} loading={save.isPending} data-testid="tag-form-save">
           {tag ? 'Save' : 'Create tag'}
         </Button>
       </Group>

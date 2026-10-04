@@ -48,6 +48,7 @@ export function AppLayout() {
             flex={1}
             maw={560}
             placeholder="from:todomundo@nubank.com.br label:finance"
+            data-testid="search-input"
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -55,7 +56,7 @@ export function AppLayout() {
           />
           <Menu position="bottom-end">
             <Menu.Target>
-              <ActionIcon variant="subtle" radius="xl" size="lg" ml="auto" aria-label="Account menu">
+              <ActionIcon variant="subtle" radius="xl" size="lg" ml="auto" aria-label="Account menu" data-testid="account-menu">
                 <Avatar src={me.user.avatarUrl} name={me.user.name ?? me.user.email} size="sm" radius="xl" />
               </ActionIcon>
             </Menu.Target>

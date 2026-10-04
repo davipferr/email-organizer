@@ -39,16 +39,17 @@ the agent can **verify its own work** and where bad code **fails mechanically**.
 
 ## Phase 1 — Verification (unlocks everything else)
 
-- [ ] `FakeMailProvider` implementing `MailProvider`, backed by JSON fixtures in
-      `backend/fixtures/` (~200 emails, bulk senders, labels, unread); `FAKE` added to
+- [x] `FakeMailProvider` (`backend/src/mail-providers/fake/`): in-memory mailbox generated from
+      a fixed seed (~200 emails, bulk senders, tags, unread, Trash, Spam, Sent); `FAKE` added to
       `MailProviderType`
-- [ ] Dev-only login `POST /api/auth/dev-login` (only when `NODE_ENV !== 'production'`
-      and `DEV_LOGIN=true`; startup fails if enabled in production)
-- [ ] `npm run seed:dev` — resets the fake account to a known state
-- [ ] `docs/feature-map.md` — per feature: route, how to reach it, `data-testid`s,
+- [x] Dev-only login `GET /api/auth/dev-login` (needs `DEV_LOGIN=true`; startup fails if enabled
+      in production) + "Dev login" button on `/login` in dev builds
+- [x] Reset to a known state: `?reset=1` on the dev login (replaces the planned `seed:dev`
+      script — the mailbox lives in the backend's memory, so a script couldn't reset it)
+- [x] `docs/feature-map.md` — per feature: route, how to reach it, `data-testid`s,
       expected result, API endpoints
-- [ ] Stable `data-testid`s on the main interactive elements
-- [ ] Remove the direct `GmailProvider` import from `auth.service.ts` (go through the registry)
+- [x] Stable `data-testid`s on the main interactive elements
+- [x] `auth.service.ts` goes through `MailProviderRegistry` instead of importing `GmailProvider`
 
 ## Phase 2 — Skills
 

@@ -63,7 +63,7 @@ export function MessageDrawer({ accountId, messageId, labelsById, userLabels, vi
       )}
       {isError && <Text c="red">Couldn't load this email. Try again.</Text>}
       {message && (
-        <Stack gap="sm">
+        <Stack gap="sm" data-testid="message-view" data-message-id={message.providerMessageId}>
           <MessageActionsBar
             messages={[message]}
             viewLabelId={viewLabelId}
@@ -92,6 +92,7 @@ export function MessageDrawer({ accountId, messageId, labelsById, userLabels, vi
           <Box
             component="iframe"
             title="Email content"
+            data-testid="message-body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"
             srcDoc={srcDoc}
             style={{ width: '100%', height: 'calc(100vh - 260px)', border: 0, borderRadius: 8, background: '#fff' }}

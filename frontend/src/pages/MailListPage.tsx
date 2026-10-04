@@ -73,18 +73,19 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={3}>{title}</Title>
+        <Title order={3} data-testid="mail-list-title">{title}</Title>
         <Group gap="xs">
           {(isFetching || actions.busy) && <Loader size="xs" />}
           <Text size="sm" c="dimmed">
             {messages.length ? `${first}–${first + messages.length - 1}` : ''}
           </Text>
-          <ActionIcon variant="default" aria-label="Refresh" onClick={() => refetch()}>
+          <ActionIcon variant="default" aria-label="Refresh" data-testid="mail-refresh" onClick={() => refetch()}>
             <IconRefresh size={16} />
           </ActionIcon>
           <ActionIcon
             variant="default"
             aria-label="Previous page"
+            data-testid="page-prev"
             disabled={pageIndex === 0}
             onClick={() => changePage(pageTokens.slice(0, -1))}
           >
@@ -93,6 +94,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
           <ActionIcon
             variant="default"
             aria-label="Next page"
+            data-testid="page-next"
             disabled={!data?.nextPageToken}
             onClick={() => changePage([...pageTokens, data!.nextPageToken])}
           >
@@ -107,6 +109,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
         <Group px="sm" py={8} gap="sm" mih={46} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
           <Checkbox
             aria-label="Select all"
+            data-testid="select-all"
             checked={allSelected}
             indeterminate={selectedMessages.length > 0 && !allSelected}
             onChange={() =>
@@ -138,7 +141,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
             <Loader />
           </Center>
         ) : messages.length === 0 ? (
-          <Text c="dimmed" ta="center" p="xl">
+          <Text c="dimmed" ta="center" p="xl" data-testid="mail-empty">
             {q ? 'No emails match this search.' : 'No emails here.'}
           </Text>
         ) : (
@@ -153,6 +156,9 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
                 return (
                   <Table.Tr
                     key={m.providerMessageId}
+                    data-testid="mail-row"
+                    data-message-id={m.providerMessageId}
+                    data-unread={m.isUnread || undefined}
                     onClick={() => open(m)}
                     bg={isSelected ? 'var(--mantine-primary-color-light)' : undefined}
                     style={{ cursor: 'pointer' }}
@@ -160,6 +166,7 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
                     <Table.Td w={44} onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         aria-label="Select email"
+                        data-testid="mail-row-checkbox"
                         checked={isSelected}
                         onChange={() => toggle(m.providerMessageId)}
                       />

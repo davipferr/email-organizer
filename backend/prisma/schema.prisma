@@ -16,6 +16,7 @@ datasource db {
 
 enum MailProviderType {
   GMAIL
+  FAKE // dev-only in-memory mailbox (DEV_LOGIN=true), never used in production
 }
 
 enum SyncType {

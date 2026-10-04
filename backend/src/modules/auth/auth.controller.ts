@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { SessionGuard } from '../../common/auth/session.guard.js';
 import { CurrentUserId } from '../../common/auth/current-user.decorator.js';
@@ -18,6 +18,13 @@ export class AuthController {
   @Get('google/callback')
   googleCallback(@Req() req: Request, @Res() res: Response) {
     return this.auth.handleGoogleCallback(req, res);
+  }
+
+  // Local development only (DEV_LOGIN=true, 404 otherwise): logs in with the fake mailbox.
+  // Open /api/auth/dev-login?reset=1 to start from a clean, known state.
+  @Get('dev-login')
+  devLogin(@Query('reset') reset: string | undefined, @Res() res: Response) {
+    return this.auth.devLogin(res, reset === '1' || reset === 'true');
   }
 
   @Get('me')

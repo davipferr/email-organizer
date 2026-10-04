@@ -81,7 +81,7 @@ export function SendersPage() {
           {isFetching && !isLoading && <Loader size="xs" />}
         </Group>
         <Group gap="sm">
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="dimmed" data-testid="sync-status">
             {running
               ? 'Syncing…'
               : sync?.lastSyncedAt
@@ -93,6 +93,7 @@ export function SendersPage() {
               leftSection={<IconRefresh size={16} />}
               loading={running || startSync.isPending}
               onClick={() => runSync(false)}
+              data-testid="sync-button"
               style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
             >
               Sync
@@ -103,13 +104,14 @@ export function SendersPage() {
                   size={36}
                   disabled={running}
                   aria-label="More sync options"
+                  data-testid="sync-options"
                   style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: '1px solid rgba(255,255,255,0.3)' }}
                 >
                   <IconChevronDown size={16} />
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Item onClick={() => runSync(true)}>Run a full sync</Menu.Item>
+                <Menu.Item onClick={() => runSync(true)} data-testid="sync-full">Run a full sync</Menu.Item>
               </Menu.Dropdown>
             </Menu>
           </Group>
@@ -151,7 +153,7 @@ export function SendersPage() {
               Sync copies your email metadata (sender, subject, date — never the content) so emails can be grouped
               by sender. The first sync can take a few minutes on a big mailbox.
             </Text>
-            <Button mt="sm" leftSection={<IconRefresh size={16} />} onClick={() => runSync(false)} loading={startSync.isPending}>
+            <Button mt="sm" leftSection={<IconRefresh size={16} />} onClick={() => runSync(false)} loading={startSync.isPending} data-testid="sync-now">
               Sync now
             </Button>
           </Stack>
@@ -162,6 +164,7 @@ export function SendersPage() {
             <SegmentedControl
               size="xs"
               value={groupBy}
+              data-testid="senders-group-by"
               onChange={(v) => setGroupBy(v as SendersQuery['groupBy'])}
               data={[
                 { value: 'email', label: 'By email' },
@@ -180,6 +183,7 @@ export function SendersPage() {
               size="xs"
               w={220}
               placeholder={groupBy === 'email' ? 'Find a sender' : 'Find a domain'}
+              data-testid="senders-search"
               leftSection={<IconSearch size={14} />}
               value={search}
               onChange={(e) => setSearch(e.currentTarget.value)}
@@ -209,7 +213,7 @@ export function SendersPage() {
                 </Table.Thead>
                 <Table.Tbody>
                   {data.senders.map((g) => (
-                    <Table.Tr key={g.key}>
+                    <Table.Tr key={g.key} data-testid="sender-row" data-key={g.key}>
                       <Table.Td>
                         <Group gap="sm" wrap="nowrap">
                           <Avatar name={g.name ?? g.key} color="initials" size="sm" />
@@ -245,10 +249,10 @@ export function SendersPage() {
                       </Table.Td>
                       <Table.Td>
                         <Group gap={6} justify="flex-end" wrap="nowrap">
-                          <Button size="xs" variant="default" onClick={() => view(g)}>
+                          <Button size="xs" variant="default" data-testid="sender-view" onClick={() => view(g)}>
                             View
                           </Button>
-                          <Button size="xs" variant="light" onClick={() => openOrganizeSender(g)}>
+                          <Button size="xs" variant="light" data-testid="sender-organize" onClick={() => openOrganizeSender(g)}>
                             Organize
                           </Button>
                         </Group>

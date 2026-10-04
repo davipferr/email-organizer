@@ -40,7 +40,7 @@ function DeleteTagConfirm({ tag, subTags }: { tag: MailLabel; subTags: MailLabel
         <Button variant="default" onClick={() => modals.close(MODAL_ID)}>
           Cancel
         </Button>
-        <Button color="red" onClick={confirm} loading={remove.isPending}>
+        <Button color="red" onClick={confirm} loading={remove.isPending} data-testid="delete-tag-confirm">
           Delete tag
         </Button>
       </Group>

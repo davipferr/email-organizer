@@ -38,6 +38,7 @@ export function LabelPicker({ target, labels, onPick, stateOf, onCreate }: Props
           value={filter}
           onChange={(e) => setFilter(e.currentTarget.value)}
           data-autofocus
+          data-testid="label-picker-filter"
           mb={6}
         />
         <ScrollArea.Autosize mah={260}>
@@ -56,6 +57,8 @@ export function LabelPicker({ target, labels, onPick, stateOf, onCreate }: Props
                 py={6}
                 style={{ borderRadius: 4 }}
                 className="label-picker-item"
+                data-testid="label-picker-option"
+                data-label-id={label.providerLabelId}
                 onClick={() => {
                   onPick(label, state)
                   close()
@@ -92,6 +95,7 @@ export function LabelPicker({ target, labels, onPick, stateOf, onCreate }: Props
               size="xs"
               fullWidth
               justify="flex-start"
+              data-testid="label-picker-new-tag"
               leftSection={<IconPlus size={14} />}
               onClick={() => {
                 close()

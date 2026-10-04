@@ -37,6 +37,12 @@ export function LoginPage() {
           >
             Continue with Google
           </Button>
+          {import.meta.env.DEV && (
+            // Needs DEV_LOGIN=true in the backend; logs in with a fake mailbox (no Google).
+            <Button component="a" href="/api/auth/dev-login?reset=1" variant="default" fullWidth data-testid="dev-login">
+              Dev login (fake mailbox)
+            </Button>
+          )}
           <Text c="dimmed" ta="center" size="xs">
             This is a private app, so Google shows an “unverified app” warning. Choose Advanced → Go to
             app to continue.

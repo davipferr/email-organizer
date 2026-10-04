@@ -1,11 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { CookieOptions, Request, Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppConfig } from '../../config/config.module.js';
 import { TokenCipherService } from '../../common/crypto/token-cipher.service.js';
 import { SESSION_COOKIE } from '../../common/auth/session.guard.js';
-import { GmailProvider } from '../../mail-providers/gmail/gmail.provider.js';
+import { MailProviderRegistry } from '../../mail-providers/mail-provider.registry.js';
+import { FakeMailProvider } from '../../mail-providers/fake/fake.provider.js';
+import { FAKE_OWNER } from '../../mail-providers/fake/fake-mailbox.js';
 import { MissingScopesError } from '../../mail-providers/provider-errors.js';
 import { MailProviderType } from '../../generated/prisma/enums.js';
 
@@ -19,8 +21,13 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly config: AppConfig,
     private readonly cipher: TokenCipherService,
-    private readonly gmail: GmailProvider,
+    private readonly providers: MailProviderRegistry,
+    private readonly fake: FakeMailProvider,
   ) {}
+
+  private get gmail() {
+    return this.providers.get(MailProviderType.GMAIL);
+  }
 
   private cookieOptions(maxAgeMs: number): CookieOptions {
     return {
@@ -72,21 +79,58 @@ export class AuthService {
         update: encrypted,
       });
 
-      const ttlMs = this.config.get('SESSION_TTL_DAYS', { infer: true }) * 24 * 3600_000;
-      const session = await this.prisma.session.create({
-        data: {
-          id: randomBytes(32).toString('base64url'),
-          userId: user.id,
-          expiresAt: new Date(Date.now() + ttlMs),
-        },
-      });
-      res.cookie(SESSION_COOKIE, session.id, this.cookieOptions(ttlMs));
+      await this.startSession(user.id, res);
       res.redirect(this.appUrl('/inbox'));
     } catch (err) {
       if (err instanceof MissingScopesError) return res.redirect(this.appUrl('/login?error=scopes'));
       this.logger.error('Google login failed', err instanceof Error ? err.stack : err);
       res.redirect(this.appUrl('/login?error=failed'));
     }
+  }
+
+  private async startSession(userId: string, res: Response): Promise<void> {
+    const ttlMs = this.config.get('SESSION_TTL_DAYS', { infer: true }) * 24 * 3600_000;
+    const session = await this.prisma.session.create({
+      data: {
+        id: randomBytes(32).toString('base64url'),
+        userId,
+        expiresAt: new Date(Date.now() + ttlMs),
+      },
+    });
+    res.cookie(SESSION_COOKIE, session.id, this.cookieOptions(ttlMs));
+  }
+
+  // Local development only (DEV_LOGIN=true): logs in as a user whose only mailbox is the
+  // fake in-memory one. With reset, the mailbox goes back to the fixtures and all synced
+  // data for it is deleted, as if the user had just signed up.
+  async devLogin(res: Response, reset: boolean): Promise<void> {
+    if (!this.config.get('DEV_LOGIN', { infer: true })) throw new NotFoundException();
+    const { email, name } = FAKE_OWNER;
+    const where = { provider_emailAddress: { provider: MailProviderType.FAKE, emailAddress: email } };
+
+    const user = await this.prisma.user.upsert({
+      where: { email },
+      create: { email, name },
+      update: { lastLoginAt: new Date() },
+    });
+    if (reset) {
+      await this.prisma.mailAccount.deleteMany({ where: where.provider_emailAddress });
+      this.fake.reset(email);
+    }
+    const tokens = FakeMailProvider.tokensFor(email);
+    const encrypted = {
+      accessToken: this.cipher.encrypt(tokens.accessToken),
+      refreshToken: this.cipher.encrypt(tokens.refreshToken),
+      tokenExpiresAt: tokens.expiresAt,
+    };
+    await this.prisma.mailAccount.upsert({
+      where,
+      create: { userId: user.id, provider: MailProviderType.FAKE, emailAddress: email, ...encrypted },
+      update: encrypted,
+    });
+
+    await this.startSession(user.id, res);
+    res.redirect(this.appUrl('/inbox'));
   }
 
   async me(userId: string) {
