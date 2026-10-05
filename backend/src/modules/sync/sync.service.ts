@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobsService, QUEUES } from '../../jobs/jobs.service.js';
 import { AccountsService } from '../accounts/accounts.service.js';
 import { SyncStatus, SyncType } from '../../generated/prisma/enums.js';
-import type { SyncJobData } from './sync.worker.js';
+import { SyncWorker, type SyncJobData } from './sync.worker.js';
 
 @Injectable()
 export class SyncService {
@@ -11,6 +11,7 @@ export class SyncService {
     private readonly prisma: PrismaService,
     private readonly jobs: JobsService,
     private readonly accounts: AccountsService,
+    private readonly worker: SyncWorker,
   ) {}
 
   // The Sync button: FULL the first time (or when forced), INCREMENTAL afterwards.
@@ -26,6 +27,18 @@ export class SyncService {
       },
     });
     await this.jobs.boss.send(QUEUES.SYNC, { syncRunId: run.id } satisfies SyncJobData);
+    return run;
+  }
+
+  // The Stop button. The run stays RUNNING (so Sync stays blocked) until the worker has
+  // stopped and marked it CANCELLED, which keeps two syncs of one account from overlapping.
+  async cancel(userId: string, accountId: string) {
+    await this.accounts.getOwnedAccount(userId, accountId);
+    const running = await this.prisma.syncRun.findFirst({ where: { accountId, status: SyncStatus.RUNNING } });
+    if (!running) throw new ConflictException('No sync is running');
+
+    const run = await this.prisma.syncRun.update({ where: { id: running.id }, data: { cancelRequested: true } });
+    this.worker.cancel(run.id);
     return run;
   }
 

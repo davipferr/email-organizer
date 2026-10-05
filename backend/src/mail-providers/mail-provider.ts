@@ -113,9 +113,12 @@ export interface MailProvider {
   deleteLabel(auth: ProviderAuth, id: string): Promise<void>;
 
   // Sync (metadata into PostgreSQL, triggered by the Sync button)
+  // Aborting `signal` (the Stop button) makes it reject with the signal's reason; batches
+  // already passed to onBatch stay stored.
   fullSync(
     auth: ProviderAuth,
     onBatch: (batch: MailMessageSummary[], progress: SyncProgress) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<{ cursor: string }>;
   // Returns null when the cursor is too old and a full sync is required.
   incrementalSync(auth: ProviderAuth, cursor: string): Promise<SyncChanges | null>;

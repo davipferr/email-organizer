@@ -28,6 +28,7 @@ export interface FakeMailbox {
   generation: string; // changes on every rebuild, so old sync cursors are rejected
   version: number;
   nextLabelNumber: number;
+  syncDelayMs: number; // pause per full-sync batch, so a sync lasts long enough to be stopped
 }
 
 export const FAKE_OWNER: MailAddress = { email: 'dev@fake.local', name: 'Dev User' };
@@ -271,7 +272,14 @@ export function createFakeMailbox(now = new Date()): FakeMailbox {
     });
   });
 
-  return { messages, labels, generation: randomUUID(), version: 0, nextLabelNumber: USER_LABELS.length + 1 };
+  return {
+    messages,
+    labels,
+    generation: randomUUID(),
+    version: 0,
+    nextLabelNumber: USER_LABELS.length + 1,
+    syncDelayMs: 0,
+  };
 }
 
 // ---------- Search (a useful subset of Gmail's syntax) ----------

@@ -95,7 +95,12 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
 ### Senders — `/senders` (`nav-senders`)
 - After a reset: "Never synced" panel with `sync-now`.
 - `sync-button` (incremental), `sync-options` → `sync-full`. Status text `sync-status`
-  ("Syncing…", "Last synced just now"). Sync of the fake mailbox takes ~1–2 s.
+  ("Syncing…", "Stopping…", "Last synced just now"). Sync of the fake mailbox takes ~1–2 s.
+- Stop: while a sync runs, the progress panel has `sync-stop`. The run stays RUNNING
+  ("Stopping…") until the worker stops, then ends CANCELLED: notification "Sync stopped" and
+  a gray notice `sync-stopped` until the next sync. Emails stored so far stay; Sync is
+  available again. To have time to click it, log in with
+  `/api/auth/dev-login?reset=1&slowSync=1` (each batch of 50 takes 2 s, ~8 s in all).
 - Table `sender-row[data-key]` (Emails, Unread, Latest, Size); `senders-group-by`
   (By email / By domain — `amazon.com` groups 2 senders, 32 emails), sort select,
   `senders-search`, pagination.
@@ -109,8 +114,11 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
 - `sender-organize` → modal: Add tag, Archive (default on), Mark as read, `organize-apply`,
   `organize-trash-all` (confirm modal). Runs a background job; progress notification ends with
   "Done — N emails updated". Emails already in Trash are not counted.
-- API: `POST/GET /api/accounts/:id/sync`, `GET .../senders[?unsubscribable=true]`,
+- API: `POST/GET /api/accounts/:id/sync`, `POST .../sync/cancel` (409 if none running),
+  `GET .../senders[?unsubscribable=true]`,
   `POST/GET .../messages/bulk[/:id]`
+- Check: slow sync → Stop at ~100/201 → CANCELLED, `sync-stopped` shown; Sync again →
+  201/201, progress only goes up.
 - Check: after Sync, `todomundo@nubank.com.br` shows 25; Organize `deals@shop.example` with
   defaults → 15 updated, none left in Inbox.
 

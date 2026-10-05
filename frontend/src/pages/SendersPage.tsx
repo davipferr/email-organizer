@@ -23,9 +23,16 @@ import {
 } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
-import { IconChevronDown, IconRefresh, IconSearch, IconUsers } from '@tabler/icons-react'
+import { IconChevronDown, IconPlayerStop, IconRefresh, IconSearch, IconUsers } from '@tabler/icons-react'
 import { errorMessage } from '../api/client.ts'
-import { useCurrentAccount, useSenders, useStartSync, useSyncStatus, type SendersQuery } from '../api/hooks.ts'
+import {
+  useCancelSync,
+  useCurrentAccount,
+  useSenders,
+  useStartSync,
+  useSyncStatus,
+  type SendersQuery,
+} from '../api/hooks.ts'
 import type { SenderGroup } from '../api/types.ts'
 import { formatBytes, formatListDate, formatRelative } from '../utils/format.ts'
 import { openOrganizeSender } from '../features/senders/OrganizeSenderForm.tsx'
@@ -52,7 +59,9 @@ export function SendersPage() {
 
   const { data: sync } = useSyncStatus(account?.id)
   const startSync = useStartSync(account?.id)
+  const cancelSync = useCancelSync(account?.id)
   const running = sync?.run?.status === 'RUNNING'
+  const stopping = running && !!sync?.run?.cancelRequested
   const { data, isLoading, isFetching } = useSenders(account?.id, {
     groupBy,
     sort,
@@ -64,10 +73,16 @@ export function SendersPage() {
   // The senders list reloads by itself (useSenders keys on lastSyncedAt); this only reports the result.
   const runSync = (full: boolean) =>
     startSync.mutate(full, {
-      onSuccess: (run) =>
-        run?.status === 'FAILED'
-          ? notifications.show({ color: 'red', message: run.error ?? 'Sync failed' })
-          : notifications.show({ message: 'Sync finished', autoClose: 2500 }),
+      onSuccess: (run) => {
+        if (run?.status === 'FAILED') notifications.show({ color: 'red', message: run.error ?? 'Sync failed' })
+        else if (run?.status === 'CANCELLED') notifications.show({ message: 'Sync stopped', autoClose: 2500 })
+        else notifications.show({ message: 'Sync finished', autoClose: 2500 })
+      },
+      onError: (err) => notifications.show({ color: 'red', message: errorMessage(err) }),
+    })
+
+  const stopSync = () =>
+    cancelSync.mutate(undefined, {
       onError: (err) => notifications.show({ color: 'red', message: errorMessage(err) }),
     })
 
@@ -90,7 +105,9 @@ export function SendersPage() {
         </Group>
         <Group gap="sm">
           <Text size="sm" c="dimmed" data-testid="sync-status">
-            {running
+            {stopping
+              ? 'Stopping…'
+              : running
               ? 'Syncing…'
               : sync?.lastSyncedAt
                 ? `Last synced ${formatRelative(sync.lastSyncedAt)}`
@@ -128,15 +145,33 @@ export function SendersPage() {
 
       {running && sync?.run && (
         <Paper withBorder radius="md" p="sm" mb="md">
-          <Group justify="space-between" mb={6}>
+          <Group justify="space-between" mb={6} wrap="nowrap">
             <Text size="sm">
-              {sync.run.type === 'FULL' ? 'Copying your email metadata…' : 'Fetching changes since the last sync…'}
+              {stopping
+                ? 'Stopping after the current batch…'
+                : sync.run.type === 'FULL'
+                  ? 'Copying your email metadata…'
+                  : 'Fetching changes since the last sync…'}
             </Text>
-            <Text size="sm" c="dimmed">
-              {sync.run.total
-                ? `${sync.run.processed.toLocaleString()} / ${sync.run.total.toLocaleString()}`
-                : 'Listing emails…'}
-            </Text>
+            <Group gap="sm" wrap="nowrap">
+              <Text size="sm" c="dimmed">
+                {sync.run.total
+                  ? `${sync.run.processed.toLocaleString()} / ${sync.run.total.toLocaleString()}`
+                  : 'Listing emails…'}
+              </Text>
+              <Button
+                size="compact-xs"
+                variant="light"
+                color="red"
+                leftSection={<IconPlayerStop size={12} />}
+                loading={cancelSync.isPending}
+                disabled={stopping}
+                onClick={stopSync}
+                data-testid="sync-stop"
+              >
+                {stopping ? 'Stopping' : 'Stop'}
+              </Button>
+            </Group>
           </Group>
           <Progress
             value={sync.run.total ? (sync.run.processed / sync.run.total) * 100 : 100}
@@ -144,6 +179,12 @@ export function SendersPage() {
             size="sm"
           />
         </Paper>
+      )}
+
+      {sync?.run?.status === 'CANCELLED' && (
+        <Alert color="gray" mb="md" data-testid="sync-stopped">
+          The last sync was stopped, so some emails may be missing or out of date here. Click Sync to finish it.
+        </Alert>
       )}
 
       {sync?.run?.status === 'FAILED' && !running && (

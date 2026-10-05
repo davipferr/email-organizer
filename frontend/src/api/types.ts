@@ -49,7 +49,8 @@ export type JobStatus = 'RUNNING' | 'DONE' | 'FAILED'
 export interface SyncRun {
   id: string
   type: 'FULL' | 'INCREMENTAL'
-  status: JobStatus
+  status: JobStatus | 'CANCELLED'
+  cancelRequested: boolean // Stop was clicked; still RUNNING until the worker stops
   total: number
   processed: number
   error: string | null

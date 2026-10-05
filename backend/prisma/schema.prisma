@@ -28,6 +28,7 @@ enum SyncStatus {
   RUNNING
   DONE
   FAILED
+  CANCELLED // stopped by the user
 }
 
 enum LabelType {
@@ -87,16 +88,18 @@ model MailAccount {
 
 // One row per click on the Sync button.
 model SyncRun {
-  id         String      @id @default(uuid()) @db.Uuid
-  accountId  String      @db.Uuid
-  account    MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  type       SyncType
-  status     SyncStatus  @default(RUNNING)
-  total      Int         @default(0)
-  processed  Int         @default(0)
-  error      String?
-  startedAt  DateTime    @default(now())
-  finishedAt DateTime?
+  id              String      @id @default(uuid()) @db.Uuid
+  accountId       String      @db.Uuid
+  account         MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type            SyncType
+  status          SyncStatus  @default(RUNNING)
+  total           Int         @default(0)
+  processed       Int         @default(0)
+  error           String?
+  // Stop was clicked; the run stays RUNNING until the worker has actually stopped.
+  cancelRequested Boolean     @default(false)
+  startedAt       DateTime    @default(now())
+  finishedAt      DateTime?
 
   @@index([accountId, startedAt(sort: Desc)])
   @@map("sync_runs")

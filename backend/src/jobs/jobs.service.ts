@@ -21,10 +21,14 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     await this.boss.start();
+    // A full sync of a big mailbox can take a while; never retry automatically —
+    // the user clicks Sync again instead. A retry would start a second copy of the job
+    // while the first is still running.
+    const options = { expireInSeconds: 6 * 3600, retryLimit: 0 };
     for (const queue of Object.values(QUEUES)) {
-      // A full sync of a big mailbox can take a while; never retry automatically —
-      // the user clicks Sync again instead.
-      await this.boss.createQueue(queue, { expireInSeconds: 6 * 3600, retryLimit: 0 });
+      await this.boss.createQueue(queue, options);
+      // createQueue leaves an existing queue untouched, so the options are applied again here.
+      await this.boss.updateQueue(queue, options);
     }
   }
 

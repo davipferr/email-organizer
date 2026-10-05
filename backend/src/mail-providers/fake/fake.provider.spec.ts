@@ -101,4 +101,20 @@ describe('FakeMailProvider', () => {
     provider.reset('dev@fake.local');
     expect(await provider.incrementalSync(auth, changes!.newCursor)).toBeNull();
   });
+
+  it('full sync stops between batches when its signal aborts', async () => {
+    const controller = new AbortController();
+    const reason = new Error('stopped');
+    const batches: number[] = [];
+    const sync = provider.fullSync(
+      auth,
+      async (batch) => {
+        batches.push(batch.length);
+        controller.abort(reason);
+      },
+      controller.signal,
+    );
+    await expect(sync).rejects.toBe(reason);
+    expect(batches).toEqual([50]);
+  });
 });

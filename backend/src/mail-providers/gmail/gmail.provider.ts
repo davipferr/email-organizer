@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { google, type gmail_v1 } from 'googleapis';
 import { MailProviderType } from '../../generated/prisma/enums.js';
 import { AppConfig } from '../../config/config.module.js';
-import { chunk, mapLimit, sleep } from '../../common/async.js';
+import { chunk, mapLimit, sleep, untilAborted } from '../../common/async.js';
 import { RateLimiter } from '../../common/rate-limiter.js';
 import { MissingScopesError, ProviderAuthError, ProviderNotFoundError, ProviderRequestError } from '../provider-errors.js';
 import { errorCode, errorMessage, errorStatus, isRateLimit, isRetryable } from './gmail-errors.js';
@@ -101,13 +101,15 @@ export class GmailProvider implements MailProvider {
   }
 
   // Waits for quota, retries rate limits / transient errors with exponential backoff and
-  // maps auth and not-found errors to provider-agnostic errors.
-  private async call<T>(auth: ProviderAuth, cost: number, fn: () => Promise<T>): Promise<T> {
+  // maps auth and not-found errors to provider-agnostic errors. An aborted `signal` stops
+  // the waiting at once (a rate-limit pause can last a minute).
+  private async call<T>(auth: ProviderAuth, cost: number, fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
-        await this.limiter(auth).take(cost);
+        await untilAborted(this.limiter(auth).take(cost), signal);
         return await fn();
       } catch (err) {
+        if (signal?.aborted) throw signal.reason;
         const status = errorStatus(err);
         if (status === 401 || errorCode(err) === 'invalid_grant') {
           await auth.onAuthFailed?.();
@@ -125,7 +127,7 @@ export class GmailProvider implements MailProvider {
           continue;
         }
         if (isRetryable(err) && attempt < 5) {
-          await sleep(2 ** attempt * 500 + Math.random() * 250);
+          await untilAborted(sleep(2 ** attempt * 500 + Math.random() * 250), signal);
           continue;
         }
         throw err;
@@ -176,11 +178,19 @@ export class GmailProvider implements MailProvider {
 
   // ---------- Messages ----------
 
-  private async getSummaries(auth: ProviderAuth, gmail: Gmail, ids: string[]): Promise<MailMessageSummary[]> {
+  private async getSummaries(
+    auth: ProviderAuth,
+    gmail: Gmail,
+    ids: string[],
+    signal?: AbortSignal,
+  ): Promise<MailMessageSummary[]> {
     const results = await mapLimit(ids, CONCURRENCY, async (id) => {
       try {
-        const res = await this.call(auth, COST.message, () =>
-          gmail.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: METADATA_HEADERS }),
+        const res = await this.call(
+          auth,
+          COST.message,
+          () => gmail.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: METADATA_HEADERS }),
+          signal,
         );
         return toSummary(res.data);
       } catch (err) {
@@ -217,12 +227,15 @@ export class GmailProvider implements MailProvider {
     return toFull(res.data);
   }
 
-  private async listAllIds(auth: ProviderAuth, gmail: Gmail, q?: string): Promise<string[]> {
+  private async listAllIds(auth: ProviderAuth, gmail: Gmail, q?: string, signal?: AbortSignal): Promise<string[]> {
     const ids: string[] = [];
     let pageToken: string | undefined;
     do {
-      const res = await this.call(auth, COST.list, () =>
-        gmail.users.messages.list({ userId: 'me', q, pageToken, maxResults: 500 }),
+      const res = await this.call(
+        auth,
+        COST.list,
+        () => gmail.users.messages.list({ userId: 'me', q, pageToken, maxResults: 500 }),
+        signal,
       );
       ids.push(...(res.data.messages ?? []).map((m) => m.id!));
       pageToken = res.data.nextPageToken ?? undefined;
@@ -315,16 +328,17 @@ export class GmailProvider implements MailProvider {
   async fullSync(
     auth: ProviderAuth,
     onBatch: (batch: MailMessageSummary[], progress: SyncProgress) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<{ cursor: string }> {
     const gmail = this.gmail(auth);
     // Take the cursor BEFORE listing, so changes made during the sync are picked up next time.
-    const profile = await this.call(auth, COST.getProfile, () => gmail.users.getProfile({ userId: 'me' }));
+    const profile = await this.call(auth, COST.getProfile, () => gmail.users.getProfile({ userId: 'me' }), signal);
     const cursor = profile.data.historyId!;
 
-    const ids = await this.listAllIds(auth, gmail);
+    const ids = await this.listAllIds(auth, gmail, undefined, signal);
     let processed = 0;
     for (const part of chunk(ids, SYNC_BATCH)) {
-      const batch = await this.getSummaries(auth, gmail, part);
+      const batch = await this.getSummaries(auth, gmail, part, signal);
       processed += part.length;
       await onBatch(batch, { total: ids.length, processed });
     }

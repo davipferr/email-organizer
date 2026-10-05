@@ -25,10 +25,16 @@ export class AuthController {
   }
 
   // Local development only (DEV_LOGIN=true, 404 otherwise): logs in with the fake mailbox.
-  // Open /api/auth/dev-login?reset=1 to start from a clean, known state.
+  // Open /api/auth/dev-login?reset=1 to start from a clean, known state; add &slowSync=1
+  // to make a full sync last ~8 s (to test the Stop button).
   @Get('dev-login')
-  devLogin(@Query('reset') reset: string | undefined, @Res() res: Response) {
-    return this.devLoginService.login(res, reset === '1' || reset === 'true');
+  devLogin(
+    @Query('reset') reset: string | undefined,
+    @Query('slowSync') slowSync: string | undefined,
+    @Res() res: Response,
+  ) {
+    const flag = (value: string | undefined) => value === '1' || value === 'true';
+    return this.devLoginService.login(res, flag(reset), flag(slowSync));
   }
 
   @Get('me')

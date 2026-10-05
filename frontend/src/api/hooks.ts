@@ -108,7 +108,7 @@ export function useSyncStatus(accountId: string | undefined) {
   })
 }
 
-// Starts a sync and resolves with the finished run (DONE or FAILED), so callers can react
+// Starts a sync and resolves with the finished run (DONE, FAILED or CANCELLED), so callers can react
 // to the end of the sync in the same event that started it.
 export function useStartSync(accountId: string | undefined) {
   const qc = useQueryClient()
@@ -121,6 +121,15 @@ export function useStartSync(accountId: string | undefined) {
         await new Promise((resolve) => setTimeout(resolve, 1500))
       }
     },
+  })
+}
+
+// The Stop button. The status poll shows "Stopping…" until the run ends as CANCELLED.
+export function useCancelSync(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost<SyncRun>(`/accounts/${accountId}/sync/cancel`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sync', accountId] }),
   })
 }
 

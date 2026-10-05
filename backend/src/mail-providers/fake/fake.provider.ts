@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { MailProviderType } from '../../generated/prisma/enums.js';
-import { chunk } from '../../common/async.js';
+import { chunk, sleep, untilAborted } from '../../common/async.js';
 import { ProviderNotFoundError, ProviderRequestError } from '../provider-errors.js';
 import type {
   ListMessagesQuery,
@@ -18,6 +18,8 @@ import type {
 } from '../mail-provider.js';
 import { createFakeMailbox, labelWithCounts, searchMessages, toFull, toSummary, type FakeMailbox } from './fake-mailbox.js';
 
+const SLOW_SYNC_DELAY_MS = 2000;
+
 // Dev-only provider with an in-memory mailbox, so the app can be tested without
 // Google. Registered only when DEV_LOGIN=true (see MailProviderRegistry); accounts are
 // created by the dev login. The mailbox key is the account's access token.
@@ -34,8 +36,11 @@ export class FakeMailProvider implements MailProvider {
     return { accessToken: token, refreshToken: token, expiresAt: new Date('2100-01-01') };
   }
 
-  reset(email: string): void {
-    this.mailboxes.set(FakeMailProvider.tokensFor(email).accessToken, createFakeMailbox());
+  // slowSync: each full-sync batch takes 2 s (about 8 s in all), to test stopping a sync.
+  reset(email: string, { slowSync = false } = {}): void {
+    const mailbox = createFakeMailbox();
+    mailbox.syncDelayMs = slowSync ? SLOW_SYNC_DELAY_MS : 0;
+    this.mailboxes.set(FakeMailProvider.tokensFor(email).accessToken, mailbox);
   }
 
   private mailbox(auth: ProviderAuth): FakeMailbox {
@@ -167,12 +172,15 @@ export class FakeMailProvider implements MailProvider {
   async fullSync(
     auth: ProviderAuth,
     onBatch: (batch: MailMessageSummary[], progress: SyncProgress) => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<{ cursor: string }> {
     const mailbox = this.mailbox(auth);
     const cursor = `${mailbox.generation}:${mailbox.version}`;
     const all = [...mailbox.messages.values()].map(toSummary);
     let processed = 0;
     for (const batch of chunk(all, 50)) {
+      // Like Gmail, stopping takes effect between requests, including while waiting.
+      await untilAborted(sleep(mailbox.syncDelayMs), signal);
       processed += batch.length;
       await onBatch(batch, { total: all.length, processed });
     }

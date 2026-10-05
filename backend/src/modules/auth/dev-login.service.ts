@@ -23,7 +23,7 @@ export class DevLoginService {
     private readonly auth: AuthService,
   ) {}
 
-  async login(res: Response, reset: boolean): Promise<void> {
+  async login(res: Response, reset: boolean, slowSync = false): Promise<void> {
     if (!this.config.get('DEV_LOGIN', { infer: true })) throw new NotFoundException();
     const { email, name } = FAKE_OWNER;
     const where = { provider_emailAddress: { provider: MailProviderType.FAKE, emailAddress: email } };
@@ -35,7 +35,7 @@ export class DevLoginService {
     });
     if (reset) {
       await this.prisma.mailAccount.deleteMany({ where: where.provider_emailAddress });
-      this.fake.reset(email);
+      this.fake.reset(email, { slowSync });
     }
     const tokens = FakeMailProvider.tokensFor(email);
     const encrypted = {

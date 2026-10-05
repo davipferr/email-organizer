@@ -1,5 +1,17 @@
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Settles like `promise`, but rejects with the signal's reason as soon as it aborts, so a
+// caller stuck waiting (e.g. on a paused rate limiter) can stop right away.
+export function untilAborted<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
 export function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));

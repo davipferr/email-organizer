@@ -23,6 +23,12 @@ export class SyncController {
     return this.sync.start(userId, accountId, body.force === 'full');
   }
 
+  // The Stop button. 409 if no sync is running.
+  @Post('cancel')
+  cancel(@CurrentUserId() userId: string, @Param('accountId', ParseUUIDPipe) accountId: string) {
+    return this.sync.cancel(userId, accountId);
+  }
+
   // Current/last run with progress; the UI polls this while a sync is running.
   @Get()
   status(@CurrentUserId() userId: string, @Param('accountId', ParseUUIDPipe) accountId: string) {
