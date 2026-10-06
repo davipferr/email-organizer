@@ -54,5 +54,5 @@ if (app === 'backend') {
 }
 
 console.log(`[slot ${slot}] ${app} on :${app === 'backend' ? env.PORT : env.VITE_PORT}${env.DB_SUFFIX ? `, database suffix ${env.DB_SUFFIX}` : ''}`);
-const child = spawn(app === 'backend' ? 'npx nest start --watch' : 'npx vite', { cwd, env, shell: true, stdio: 'inherit' });
+const child = spawn(app === 'backend' ? 'npm run start:dev' : 'npx vite', { cwd, env, shell: true, stdio: 'inherit' });
 child.on('exit', (code) => process.exit(code ?? 0));
