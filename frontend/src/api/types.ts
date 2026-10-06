@@ -108,6 +108,49 @@ export interface MailboxStats {
   topSenders: { email: string; name: string | null; count: number }[]
 }
 
+// "Who did I stop reading?": Senders rows (one sender each) plus the unread streak.
+export interface IgnoredSender extends SenderGroup {
+  streak: number // newest emails in a row that are unread
+  lastRead: string | null // newest email from this sender that was read
+}
+
+export interface IgnoredSendersPage {
+  lastSyncedAt: string | null
+  minStreak: number
+  totalSenders: number
+  page: number
+  pageSize: number
+  senders: IgnoredSender[]
+}
+
+export type NoteTarget = 'EMAIL' | 'SENDER'
+
+export interface Note {
+  id: string
+  targetType: NoteTarget
+  targetKey: string // email id, or lowercased sender address
+  body: string
+  updatedAt: string
+}
+
+export interface SavedSearch {
+  id: string
+  name: string
+  query: string
+}
+
+export interface EmailRef {
+  id: string
+  from: string
+  subject: string | null
+  date: string
+}
+
+export interface AskAnswer {
+  answer: string // cites emails as [[email-id]]
+  sources: EmailRef[]
+}
+
 export interface BulkAction {
   id: string
   status: JobStatus

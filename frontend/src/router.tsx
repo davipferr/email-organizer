@@ -7,6 +7,8 @@ import { SendersPage } from './pages/SendersPage.tsx'
 import { TagsPage } from './pages/TagsPage.tsx'
 import { StoragePage } from './pages/StoragePage.tsx'
 import { StatsPage } from './pages/StatsPage.tsx'
+import { IgnoredSendersPage } from './pages/IgnoredSendersPage.tsx'
+import { AskPage } from './pages/AskPage.tsx'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -22,6 +24,8 @@ export const router = createBrowserRouter([
       { path: 'tags', element: <TagsPage /> },
       { path: 'storage', element: <StoragePage /> },
       { path: 'stats', element: <StatsPage /> },
+      { path: 'ignored', element: <IgnoredSendersPage /> },
+      { path: 'ask', element: <AskPage /> },
       { path: '*', element: <Navigate to="/inbox" replace /> },
     ],
   },

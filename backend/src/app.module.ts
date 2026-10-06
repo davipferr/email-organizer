@@ -12,6 +12,9 @@ import { MessagesModule } from './modules/messages/messages.module.js';
 import { LabelsModule } from './modules/labels/labels.module.js';
 import { SendersModule } from './modules/senders/senders.module.js';
 import { InsightsModule } from './modules/insights/insights.module.js';
+import { NotesModule } from './modules/notes/notes.module.js';
+import { SavedSearchesModule } from './modules/saved-searches/saved-searches.module.js';
+import { AskModule } from './modules/ask/ask.module.js';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { InsightsModule } from './modules/insights/insights.module.js';
     LabelsModule,
     SendersModule,
     InsightsModule,
+    NotesModule,
+    SavedSearchesModule,
+    AskModule,
   ],
 })
 export class AppModule {}

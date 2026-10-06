@@ -76,10 +76,12 @@ model MailAccount {
   needsReconnect Boolean          @default(false)
   createdAt      DateTime         @default(now())
 
-  syncRuns    SyncRun[]
-  labels      Label[]
-  messages    Message[]
-  bulkActions BulkAction[]
+  syncRuns      SyncRun[]
+  labels        Label[]
+  messages      Message[]
+  bulkActions   BulkAction[]
+  notes         Note[]
+  savedSearches SavedSearch[]
 
   @@unique([provider, emailAddress])
   @@index([userId])
@@ -181,4 +183,36 @@ model MessageLabel {
   @@id([messageId, labelId])
   @@index([labelId])
   @@map("message_labels")
+}
+
+enum NoteTarget {
+  EMAIL // targetKey = providerMessageId
+  SENDER // targetKey = lowercased sender email
+}
+
+// The user's own notes, kept only in this app (never written to the mailbox).
+model Note {
+  id         String      @id @default(uuid()) @db.Uuid
+  accountId  String      @db.Uuid
+  account    MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  targetType NoteTarget
+  targetKey  String
+  body       String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([accountId, targetType, targetKey])
+  @@map("notes")
+}
+
+model SavedSearch {
+  id        String      @id @default(uuid()) @db.Uuid
+  accountId String      @db.Uuid
+  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name      String
+  query     String // Gmail search syntax, opened as /search?q=
+  createdAt DateTime    @default(now())
+
+  @@index([accountId, createdAt])
+  @@map("saved_searches")
 }

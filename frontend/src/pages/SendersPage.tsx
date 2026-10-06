@@ -23,11 +23,12 @@ import {
 } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
-import { IconChevronDown, IconPlayerStop, IconRefresh, IconSearch, IconUsers } from '@tabler/icons-react'
+import { IconChevronDown, IconNote, IconPlayerStop, IconRefresh, IconSearch, IconUsers } from '@tabler/icons-react'
 import { errorMessage } from '../api/client.ts'
 import {
   useCancelSync,
   useCurrentAccount,
+  useNotes,
   useSenders,
   useStartSync,
   useSyncStatus,
@@ -37,6 +38,7 @@ import type { SenderGroup } from '../api/types.ts'
 import { formatBytes, formatListDate, formatRelative } from '../utils/format.ts'
 import { openOrganizeSender } from '../features/senders/OrganizeSenderForm.tsx'
 import { UnsubscribeMenu } from '../features/senders/UnsubscribeMenu.tsx'
+import { openSenderNote } from '../features/notes/NoteEditor.tsx'
 
 const SORT_OPTIONS = [
   { value: 'count', label: 'Most emails' },
@@ -91,6 +93,9 @@ export function SendersPage() {
     set(value)
     setPage(1)
   }
+
+  // Notes are per sender address, so they show in the "By email" view.
+  const { data: notes } = useNotes(account?.id, 'SENDER', groupBy === 'email' ? (data?.senders.map((g) => g.key) ?? []) : [])
 
   const neverSynced = !!sync && !sync.lastSyncedAt && !running
   const totalPages = data ? Math.max(1, Math.ceil(data.totalGroups / data.pageSize)) : 1
@@ -264,7 +269,7 @@ export function SendersPage() {
                     <Table.Th w={80} ta="right">Unread</Table.Th>
                     <Table.Th w={90} ta="right">Latest</Table.Th>
                     <Table.Th w={90} ta="right">Size</Table.Th>
-                    <Table.Th w={290} />
+                    <Table.Th w={320} />
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -280,6 +285,11 @@ export function SendersPage() {
                             <Text size="xs" c="dimmed" truncate>
                               {groupBy === 'email' ? g.key : `${g.senders} sender${g.senders === 1 ? '' : 's'}`}
                             </Text>
+                            {notes?.has(g.key) && (
+                              <Text size="xs" c="yellow.7" fs="italic" truncate title={notes.get(g.key)!.body} data-testid="sender-note-text">
+                                {notes.get(g.key)!.body}
+                              </Text>
+                            )}
                           </div>
                         </Group>
                       </Table.Td>
@@ -305,6 +315,17 @@ export function SendersPage() {
                       </Table.Td>
                       <Table.Td>
                         <Group gap={6} justify="flex-end" wrap="nowrap">
+                          {groupBy === 'email' && (
+                            <ActionIcon
+                              variant={notes?.has(g.key) ? 'light' : 'subtle'}
+                              color={notes?.has(g.key) ? 'yellow' : 'gray'}
+                              aria-label="Note on this sender"
+                              onClick={() => openSenderNote(g.key)}
+                              data-testid="sender-note"
+                            >
+                              <IconNote size={16} />
+                            </ActionIcon>
+                          )}
                           <UnsubscribeMenu group={g} />
                           <Button size="xs" variant="default" data-testid="sender-view" onClick={() => view(g)}>
                             View

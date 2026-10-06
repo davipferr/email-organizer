@@ -1,11 +1,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPatch, apiPost } from './client.ts'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client.ts'
 import type {
+  AskAnswer,
+  IgnoredSendersPage,
   MailLabel,
   MailMessageFull,
   MailboxStats,
   Me,
   MessagePage,
+  Note,
+  NoteTarget,
+  SavedSearch,
   SendersPage,
   StoragePage,
   SyncRun,
@@ -174,6 +179,84 @@ export function useStats(accountId: string | undefined) {
     queryKey: ['stats', accountId, lastSyncedAt],
     queryFn: () => apiGet<MailboxStats>(`/accounts/${accountId}/stats?tz=${encodeURIComponent(browserTimeZone)}`),
     enabled: !!accountId,
+  })
+}
+
+export function useIgnoredSenders(accountId: string | undefined, minStreak: number, page: number) {
+  const lastSyncedAt = useSyncStatus(accountId).data?.lastSyncedAt
+  return useQuery({
+    queryKey: ['ignored', accountId, minStreak, page, lastSyncedAt],
+    queryFn: () => apiGet<IgnoredSendersPage>(`/accounts/${accountId}/ignored-senders?minStreak=${minStreak}&page=${page}`),
+    enabled: !!accountId,
+    placeholderData: keepPreviousData,
+  })
+}
+
+// Notes for the rows on screen (email ids or sender addresses), keyed by targetKey.
+export function useNotes(accountId: string | undefined, type: NoteTarget, keys: string[]) {
+  const sorted = [...new Set(keys)].sort()
+  return useQuery({
+    queryKey: ['notes', accountId, type, sorted],
+    queryFn: async () => {
+      const params = new URLSearchParams({ type, keys: sorted.join(',') })
+      const notes = await apiGet<Note[]>(`/accounts/${accountId}/notes?${params}`)
+      return new Map(notes.map((n) => [n.targetKey, n]))
+    },
+    enabled: !!accountId && sorted.length > 0,
+  })
+}
+
+// Saves a note; an empty body deletes it.
+export function useSaveNote(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { targetType: NoteTarget; targetKey: string; body: string }) =>
+      apiPut<Note | null>(`/accounts/${accountId}/notes`, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notes', accountId] }),
+  })
+}
+
+export function useSavedSearches(accountId: string | undefined) {
+  return useQuery({
+    queryKey: ['saved-searches', accountId],
+    queryFn: () => apiGet<SavedSearch[]>(`/accounts/${accountId}/saved-searches`),
+    enabled: !!accountId,
+    staleTime: Infinity,
+  })
+}
+
+export function useSaveSearch(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id?: string; name: string; query?: string }) =>
+      id
+        ? apiPatch<SavedSearch>(`/accounts/${accountId}/saved-searches/${id}`, input)
+        : apiPost<SavedSearch>(`/accounts/${accountId}/saved-searches`, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-searches', accountId] }),
+  })
+}
+
+export function useDeleteSavedSearch(accountId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiDelete(`/accounts/${accountId}/saved-searches/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-searches', accountId] }),
+  })
+}
+
+export function useAskStatus(accountId: string | undefined) {
+  return useQuery({
+    queryKey: ['ask-status', accountId],
+    queryFn: () => apiGet<{ configured: boolean }>(`/accounts/${accountId}/ask/status`),
+    enabled: !!accountId,
+    staleTime: Infinity,
+  })
+}
+
+export function useAsk(accountId: string | undefined) {
+  return useMutation({
+    mutationFn: (question: string) =>
+      apiPost<AskAnswer>(`/accounts/${accountId}/ask`, { question, timeZone: browserTimeZone }),
   })
 }
 

@@ -45,7 +45,7 @@ export async function runBulkAction(accountId: string, body: BulkBody, title: st
       withCloseButton: true,
       message: ok ? `Done — ${b!.total.toLocaleString()} emails updated` : (error ?? b?.error ?? 'Action failed. Try again.'),
     })
-    for (const key of ['senders', 'messages', 'message', 'labels', 'sync', 'storage', 'stats']) {
+    for (const key of ['senders', 'messages', 'message', 'labels', 'sync', 'storage', 'stats', 'ignored']) {
       void qc.invalidateQueries({ queryKey: [key, accountId] })
     }
   }

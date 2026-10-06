@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import DOMPurify from 'dompurify'
-import { Anchor, Box, Center, Drawer, Group, Loader, Stack, Text } from '@mantine/core'
+import { Anchor, Box, Center, Drawer, Group, Loader, SimpleGrid, Stack, Text } from '@mantine/core'
 import { useMessage } from '../api/hooks.ts'
 import type { MailLabel } from '../api/types.ts'
 import { formatLongDate } from '../utils/format.ts'
 import { LabelBadge } from './LabelBadge.tsx'
 import { MessageActionsBar } from '../features/messages/MessageActionsBar.tsx'
+import { NoteEditor } from '../features/notes/NoteEditor.tsx'
 import type { MessageActions } from '../features/messages/useMessageActions.tsx'
 
 interface Props {
@@ -88,13 +89,29 @@ export function MessageDrawer({ accountId, messageId, labelsById, userLabels, vi
               ))}
             </Group>
           )}
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <NoteEditor
+              targetType="EMAIL"
+              targetKey={message.providerMessageId}
+              label="Your note on this email"
+              placeholder="e.g. Pay by the 10th"
+              testId="note-email"
+            />
+            <NoteEditor
+              targetType="SENDER"
+              targetKey={message.from.email}
+              label={`Your note on ${message.from.email}`}
+              placeholder="e.g. My accountant"
+              testId="note-sender"
+            />
+          </SimpleGrid>
           <Box
             component="iframe"
             title="Email content"
             data-testid="message-body"
             sandbox="allow-popups allow-popups-to-escape-sandbox"
             srcDoc={srcDoc}
-            style={{ width: '100%', height: 'calc(100vh - 260px)', border: 0, borderRadius: 8, background: '#fff' }}
+            style={{ width: '100%', height: 'calc(100vh - 400px)', minHeight: 300, border: 0, borderRadius: 8, background: '#fff' }}
           />
         </Stack>
       )}

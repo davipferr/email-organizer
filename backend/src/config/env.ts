@@ -18,6 +18,11 @@ export const envSchema = z.object({
   // Local development only: enables /api/auth/dev-login with a fake in-memory mailbox, so the
   // app can be tested (by you or an agent) without a Google account or real email.
   DEV_LOGIN: z.stringbool().default(false),
+  // Claude API key for "Ask your mailbox". Optional: without it that page says it isn't set up.
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
 })
   .refine((env) => !(env.DEV_LOGIN && env.NODE_ENV === 'production'), {
     message: 'DEV_LOGIN must never be enabled in production',

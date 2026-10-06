@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
-import { ActionIcon, Alert, Center, Checkbox, Group, Loader, Paper, Table, Text, Title } from '@mantine/core'
-import { IconChevronLeft, IconChevronRight, IconRefresh } from '@tabler/icons-react'
-import { useCurrentAccount, useLabels, useMessages } from '../api/hooks.ts'
+import { ActionIcon, Alert, Button, Center, Checkbox, Group, Loader, Paper, Table, Text, Title, Tooltip } from '@mantine/core'
+import { IconBookmark, IconBookmarkFilled, IconChevronLeft, IconChevronRight, IconNote, IconRefresh } from '@tabler/icons-react'
+import { useCurrentAccount, useLabels, useMessages, useNotes, useSavedSearches } from '../api/hooks.ts'
 import type { MailLabel, MailMessageSummary } from '../api/types.ts'
 import { formatListDate, senderName } from '../utils/format.ts'
 import { mailCategory } from '../utils/mailCategory.ts'
@@ -11,6 +11,7 @@ import { LabelBadge } from '../components/LabelBadge.tsx'
 import { MessageDrawer } from '../components/MessageDrawer.tsx'
 import { MessageActionsBar } from '../features/messages/MessageActionsBar.tsx'
 import { useMessageActions } from '../features/messages/useMessageActions.tsx'
+import { openSavedSearchForm } from '../features/saved-searches/SavedSearchForm.tsx'
 
 const SYSTEM_TITLES: Record<string, string> = { INBOX: 'Inbox', STARRED: 'Starred', SENT: 'Sent', TRASH: 'Trash' }
 
@@ -47,6 +48,9 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
   })
 
   const messages = data?.messages ?? []
+  const { data: notes } = useNotes(account?.id, 'EMAIL', messages.map((m) => m.providerMessageId))
+  const { data: savedSearches } = useSavedSearches(account?.id)
+  const savedSearch = q ? savedSearches?.find((s) => s.query === q) : undefined
   const selectedMessages = messages.filter((m) => selected.has(m.providerMessageId))
   const allSelected = messages.length > 0 && selectedMessages.length === messages.length
   const title = q
@@ -75,7 +79,23 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={3} data-testid="mail-list-title">{title}</Title>
+        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+          <Title order={3} data-testid="mail-list-title" style={{ overflowWrap: 'anywhere' }}>
+            {savedSearch ? savedSearch.name : title}
+          </Title>
+          {q && (
+            <Button
+              size="xs"
+              variant={savedSearch ? 'light' : 'default'}
+              leftSection={savedSearch ? <IconBookmarkFilled size={14} /> : <IconBookmark size={14} />}
+              disabled={!!savedSearch}
+              onClick={() => openSavedSearchForm(q)}
+              data-testid="save-search"
+            >
+              {savedSearch ? 'Saved' : 'Save search'}
+            </Button>
+          )}
+        </Group>
         <Group gap="xs">
           {(isFetching || actions.busy) && <Loader size="xs" />}
           <Text size="sm" c="dimmed">
@@ -180,6 +200,11 @@ function MailList({ labelId, q }: { labelId?: string; q?: string }) {
                     </Table.Td>
                     <Table.Td>
                       <Group gap={6} wrap="nowrap">
+                        {notes?.has(m.providerMessageId) && (
+                          <Tooltip label={notes.get(m.providerMessageId)!.body} multiline maw={320} openDelay={300}>
+                            <IconNote size={16} color="var(--mantine-color-yellow-6)" style={{ flexShrink: 0 }} data-testid="mail-row-note" />
+                          </Tooltip>
+                        )}
                         {labelId === 'INBOX' && <CategoryBadge category={mailCategory(m.labelIds)} />}
                         {rowLabels.map((l) => (
                           <LabelBadge key={l.providerLabelId} label={l} />

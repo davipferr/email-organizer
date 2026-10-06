@@ -5,7 +5,8 @@
       "name": "backend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "backend", "run", "start:dev"],
-      "port": 3000
+      "port": 3000,
+      "env": { "NODE_USE_SYSTEM_CA": "1" }
     },
     {
       "name": "frontend",
@@ -17,7 +18,8 @@
       "name": "backend-1",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev.mjs", "backend", "1"],
-      "port": 3100
+      "port": 3100,
+      "env": { "NODE_USE_SYSTEM_CA": "1" }
     },
     {
       "name": "frontend-1",
@@ -29,7 +31,8 @@
       "name": "backend-2",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev.mjs", "backend", "2"],
-      "port": 3200
+      "port": 3200,
+      "env": { "NODE_USE_SYSTEM_CA": "1" }
     },
     {
       "name": "frontend-2",

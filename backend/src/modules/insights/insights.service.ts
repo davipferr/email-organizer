@@ -3,7 +3,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { hasLabel, notTrashOrSpam } from '../../prisma/message-filters.js';
 import { AccountsService } from '../accounts/accounts.service.js';
-import type { StatsInput, StorageInput } from './insights.controller.js';
+import type { IgnoredInput, StatsInput, StorageInput } from './insights.controller.js';
 import { fillSeries, lastMonths } from './insights.utils.js';
 
 const MONTHS = 12;
@@ -21,6 +21,18 @@ interface TotalsRow {
   unread: number;
   senders: number;
   sizeBytes: bigint | null;
+}
+
+interface IgnoredRow {
+  key: string;
+  name: string | null;
+  total: number;
+  unread: number;
+  streak: number;
+  lastRead: Date | null;
+  latest: Date;
+  sizeBytes: bigint;
+  listUnsubscribe: string | null;
 }
 
 interface LargestRow {
@@ -87,6 +99,51 @@ export class InsightsService {
       byWeekday: fillSeries(WEEKDAYS, byWeekday),
       categories,
       topSenders,
+    };
+  }
+
+  // Senders whose newest `minStreak`+ emails in a row are all unread: the streak counts back
+  // from the newest email to the most recent one that was read. Emails in Trash/Spam are left out.
+  async ignored(userId: string, accountId: string, { minStreak, page, pageSize }: IgnoredInput) {
+    const account = await this.accounts.getOwnedAccount(userId, accountId);
+    const where = Prisma.sql`m."accountId" = ${accountId}::uuid AND ${notTrashOrSpam}`;
+    const perSender = Prisma.sql`
+      WITH ranked AS (
+        SELECT m.*, row_number() OVER (PARTITION BY m."fromEmail" ORDER BY m.date DESC) AS rn
+        FROM messages m WHERE ${where}
+      ), per_sender AS (
+        SELECT "fromEmail" AS key,
+               max("fromName") AS name,
+               count(*)::int AS total,
+               count(*) FILTER (WHERE "isUnread")::int AS unread,
+               coalesce(min(rn) FILTER (WHERE NOT "isUnread") - 1, count(*))::int AS streak,
+               max(date) FILTER (WHERE NOT "isUnread") AS "lastRead",
+               max(date) AS latest,
+               sum("sizeBytes")::bigint AS "sizeBytes",
+               (array_agg("listUnsubscribe" ORDER BY date DESC)
+                  FILTER (WHERE "listUnsubscribe" IS NOT NULL))[1] AS "listUnsubscribe"
+        FROM ranked GROUP BY "fromEmail"
+      )`;
+
+    const [rows, [{ count }]] = await Promise.all([
+      this.prisma.$queryRaw<IgnoredRow[]>`
+        ${perSender}
+        SELECT * FROM per_sender WHERE streak >= ${minStreak}
+        ORDER BY streak DESC, latest DESC, key
+        LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
+      this.prisma.$queryRaw<{ count: number }[]>`
+        ${perSender}
+        SELECT count(*)::int AS count FROM per_sender WHERE streak >= ${minStreak}`,
+    ]);
+
+    return {
+      lastSyncedAt: account.lastSyncedAt,
+      minStreak,
+      totalSenders: count,
+      page,
+      pageSize,
+      // Same fields as a Senders row (one sender per group), so the same actions apply.
+      senders: rows.map((r) => ({ ...r, senders: 1, sizeBytes: Number(r.sizeBytes) })),
     };
   }
 

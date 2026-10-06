@@ -1,10 +1,14 @@
 import type { ReactNode } from 'react'
-import { NavLink as RouterNavLink, useLocation } from 'react-router'
-import { ActionIcon, Box, Group, NavLink, ScrollArea, Skeleton, Text } from '@mantine/core'
+import { NavLink as RouterNavLink, useLocation, useSearchParams } from 'react-router'
+import { ActionIcon, Box, Group, Menu, NavLink, ScrollArea, Skeleton, Text } from '@mantine/core'
 import {
+  IconBookmark,
   IconChartBar,
   IconDatabase,
+  IconDots,
+  IconEyeOff,
   IconInbox,
+  IconMessageQuestion,
   IconPlus,
   IconSend,
   IconStar,
@@ -12,9 +16,10 @@ import {
   IconTrash,
   IconUsers,
 } from '@tabler/icons-react'
-import { useCurrentAccount, useLabels } from '../api/hooks.ts'
+import { useCurrentAccount, useLabels, useSavedSearches } from '../api/hooks.ts'
 import type { MailLabel } from '../api/types.ts'
 import { openTagForm } from '../features/tags/TagForm.tsx'
+import { openDeleteSavedSearch, openSavedSearchForm } from '../features/saved-searches/SavedSearchForm.tsx'
 
 const systemItems = [
   { label: 'Inbox', to: '/inbox', icon: IconInbox },
@@ -80,8 +85,10 @@ function TagLinks({ nodes, pathname }: { nodes: TagNode[]; pathname: string }): 
 
 export function SidebarNav() {
   const { pathname } = useLocation()
+  const [params] = useSearchParams()
   const account = useCurrentAccount()
   const { data: labels, isLoading } = useLabels(account?.id)
+  const { data: savedSearches } = useSavedSearches(account?.id)
   const userLabels = (labels ?? []).filter((l) => l.type === 'USER')
 
   return (
@@ -117,6 +124,14 @@ export function SidebarNav() {
       />
       <NavLink
         component={RouterNavLink}
+        to="/ignored"
+        label="Stopped reading"
+        data-testid="nav-ignored"
+        leftSection={<IconEyeOff size={18} />}
+        active={pathname === '/ignored'}
+      />
+      <NavLink
+        component={RouterNavLink}
         to="/storage"
         label="Storage"
         data-testid="nav-storage"
@@ -131,6 +146,63 @@ export function SidebarNav() {
         leftSection={<IconChartBar size={18} />}
         active={pathname === '/stats'}
       />
+      <NavLink
+        component={RouterNavLink}
+        to="/ask"
+        label="Ask your mailbox"
+        data-testid="nav-ask"
+        leftSection={<IconMessageQuestion size={18} />}
+        active={pathname === '/ask'}
+      />
+
+      {!!savedSearches?.length && (
+        <>
+          <Text size="xs" c="dimmed" px="sm" mt="md" mb={4}>
+            Saved searches
+          </Text>
+          {savedSearches.map((s) => (
+            <NavLink
+              key={s.id}
+              component={RouterNavLink}
+              to={`/search?q=${encodeURIComponent(s.query)}`}
+              label={s.name}
+              title={s.query}
+              data-testid="nav-saved-search"
+              data-query={s.query}
+              leftSection={<IconBookmark size={16} />}
+              active={pathname === '/search' && params.get('q') === s.query}
+              rightSection={
+                <Menu position="bottom-end" withinPortal>
+                  <Menu.Target>
+                    <ActionIcon
+                      component="span"
+                      variant="subtle"
+                      size="sm"
+                      aria-label={`Options for ${s.name}`}
+                      data-testid="saved-search-menu"
+                      onClick={(e) => {
+                        // Inside the link: open the menu without navigating.
+                        e.preventDefault()
+                        e.stopPropagation()
+                      }}
+                    >
+                      <IconDots size={14} />
+                    </ActionIcon>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item onClick={() => openSavedSearchForm(s.query, s)} data-testid="saved-search-rename">
+                      Rename
+                    </Menu.Item>
+                    <Menu.Item color="red" onClick={() => openDeleteSavedSearch(s)} data-testid="saved-search-delete">
+                      Delete
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              }
+            />
+          ))}
+        </>
+      )}
 
       <Group justify="space-between" px="sm" mt="md" mb={4}>
         <Text size="xs" c="dimmed">

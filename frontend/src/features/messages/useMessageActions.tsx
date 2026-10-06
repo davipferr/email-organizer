@@ -24,7 +24,7 @@ export function useMessageActions(accountId: string | undefined) {
 
   // Actions also update the synced copy, so the views built from it reload too.
   const refresh = () => {
-    for (const key of ['messages', 'message', 'senders', 'storage', 'stats']) {
+    for (const key of ['messages', 'message', 'senders', 'storage', 'stats', 'ignored']) {
       void qc.invalidateQueries({ queryKey: [key, accountId] })
     }
   }

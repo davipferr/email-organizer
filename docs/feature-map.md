@@ -76,12 +76,22 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
 
 ### Search — header box `search-input` (Enter)
 - Navigates to `/search?q=…`. Example: `label:finance-bills is:unread` → only unread Nubank emails.
+- Saved searches: on results, `save-search` → modal `saved-search-name` (defaults to the
+  query), `saved-search-submit`. The sidebar then lists it as `nav-saved-search[data-query]`
+  under "Saved searches" (active on its results page, whose title becomes the saved name and
+  the button "Saved", disabled). `saved-search-menu` → `saved-search-rename` /
+  `saved-search-delete` → `saved-search-delete-confirm`. Deleting never touches emails.
+- API: `GET/POST .../saved-searches`, `PATCH/DELETE .../saved-searches/:id`
 
 ### Open an email — click a `mail-row`
 - Drawer `message-view[data-message-id]` with actions bar, sender (link → `from:` search),
   To/date, tag badges, and the body iframe `message-body` (sandboxed, loads ~1 s later).
 - Opening an unread email marks it read silently.
-- API: `GET /api/accounts/:id/messages/:messageId`
+- Notes (private, stored only in the app): `note-email-input` / `note-email-save` for the email
+  and `note-sender-input` / `note-sender-save` for its sender. Saving empty text deletes the
+  note ("Delete note"). Rows with an email note show `mail-row-note` (tooltip = the note).
+- API: `GET /api/accounts/:id/messages/:messageId`, `GET .../notes?type=EMAIL|SENDER&keys=a,b`,
+  `PUT .../notes` `{targetType, targetKey, body}` (sender keys are lowercased)
 
 ### Select + actions — `mail-row-checkbox`, `select-all`
 - Bar shows "N selected" and: `action-tag`, `action-move`, `action-archive` (only if in Inbox),
@@ -105,6 +115,8 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
   (By email / By domain — `amazon.com` groups 2 senders, 32 emails), sort select,
   `senders-search`, pagination.
 - `sender-view` → `/search?q=from:<key>`.
+- Notes ("By email" view): `sender-note` opens the sender's note (`note-sender-input`,
+  `note-sender-save`); a saved note shows under the address as `sender-note-text`.
 - Unsubscribe: `senders-unsubscribable` switch ("Can unsubscribe") keeps only senders with a
   List-Unsubscribe header — 4 after a reset (Medium, Amazon, LinkedIn, Shop Deals), counts
   still cover all their emails. Those rows get `sender-unsubscribe` (menu):
@@ -121,6 +133,29 @@ Selectors are `[data-testid=...]`. Rows carry extra attributes for checks:
   201/201, progress only goes up.
 - Check: after Sync, `todomundo@nubank.com.br` shows 25; Organize `deals@shop.example` with
   defaults → 15 updated, none left in Inbox.
+
+### Stopped reading — `/ignored` (`nav-ignored`)
+- Senders whose newest emails in a row are unread ("unread streak"), built from the synced
+  copy; "Sync your mailbox…" before a sync. `ignored-min-streak` (3+/5+/10+/20+, default 5),
+  `ignored-count`, rows `ignored-row[data-key][data-streak]` with Unread streak, Last read,
+  Latest, and `sender-unsubscribe` (when the sender has a link), `ignored-note`,
+  `ignored-view`, `ignored-organize`. Empty: `ignored-empty`.
+- Fixtures after reset + sync: only `deals@shop.example` (streak 8, 13 of 15 unread), at 3+
+  and at 5+. Medium/LinkedIn are mostly unread but their 2nd-newest email was read.
+- API: `GET .../ignored-senders?minStreak=5&page=`
+
+### Ask your mailbox — `/ask` (`nav-ask`)
+- Needs `ANTHROPIC_API_KEY` set (see `.env.example`); without it shows `ask-not-configured`.
+  Before a sync: "Sync your mailbox…". Calls the real Claude API (costs money) — only test it
+  when the user asks.
+- `ask-input` (Enter sends) + `ask-submit`, or an `ask-example` chip. Each question is an
+  `ask-exchange` showing `ask-thinking` until `ask-answer` arrives (~10–60 s); citations
+  `ask-citation` and the list `ask-source[data-id]` open the email drawer.
+- Claude only gets read-only tools: `search_emails` (synced metadata, Trash/Spam excluded) and
+  `read_email` (live text of one synced email). Errors (bad key, rate limit) → red notification
+  and the question goes back into the box.
+- API: `GET .../ask/status` → `{configured}`, `POST .../ask` `{question, timeZone}` →
+  `{answer, sources}` (answer cites emails as `[[id]]`)
 
 ### Storage — `/storage` (`nav-storage`)
 - Built from the synced copy; before the first sync shows "Sync your mailbox…" with `go-sync`.
